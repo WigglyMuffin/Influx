@@ -1,4 +1,5 @@
-﻿using Dalamud.Configuration;
+﻿using System.Collections.Generic;
+using Dalamud.Configuration;
 
 namespace Influx;
 
@@ -7,6 +8,8 @@ public sealed class Configuration : IPluginConfiguration
     public int Version { get; set; } = 1;
 
     public ServerConfiguration Server { get; set; } = new();
+
+    public List<ulong> ExcludedCharacters { get; set; } = new();
 
     public sealed class ServerConfiguration
     {

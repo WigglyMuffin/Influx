@@ -15,18 +15,18 @@ internal sealed class AllaganToolsIPC : IDisposable
 {
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly ChatGui _chatGui;
-    private readonly ClientState _clientState;
+    private readonly Configuration _configuration;
     private readonly ICallGateSubscriber<bool, bool>? _initalized;
     private readonly ICallGateSubscriber<bool>? _isInitialized;
 
     public CharacterMonitor Characters { get; private set; }
     public InventoryMonitor Inventories { get; private set; }
 
-    public AllaganToolsIPC(DalamudPluginInterface pluginInterface, ChatGui chatGui, ClientState clientState)
+    public AllaganToolsIPC(DalamudPluginInterface pluginInterface, ChatGui chatGui, Configuration configuration)
     {
         _pluginInterface = pluginInterface;
         _chatGui = chatGui;
-        _clientState = clientState;
+        _configuration = configuration;
 
         _initalized = _pluginInterface.GetIpcSubscriber<bool, bool>("AllaganTools.Initialized");
         _isInitialized = _pluginInterface.GetIpcSubscriber<bool>("AllaganTools.IsInitialized");
@@ -55,17 +55,30 @@ internal sealed class AllaganToolsIPC : IDisposable
         }
     }
 
-    public Dictionary<Character, long> CountGil()
+    public Dictionary<Character, Currencies> CountCurrencies()
     {
         var characters = Characters.All.ToDictionary(x => x.CharacterId, x => x);
-        return Inventories.All.ToDictionary(
-            x => characters[x.Value.CharacterId],
-            y => y.Value.GetAllItems().Where(x => x.ItemId == 1).Sum(x => x.Quantity));
+        return Inventories.All
+            .Where(x => !_configuration.ExcludedCharacters.Contains(x.Key))
+            .ToDictionary(
+                x => characters[x.Value.CharacterId],
+                y =>
+                {
+                    var inv = new InventoryWrapper(y.Value.GetAllItems());
+                    return new Currencies
+                    {
+                        Gil = inv.Sum(1),
+                        FcCredits = inv.Sum(80),
+                        Ventures = inv.Sum(21072),
+                        CeruleumTanks = inv.Sum(10155),
+                        RepairKits = inv.Sum(10373),
+                    };
+                });
     }
 
     public void Dispose()
     {
-        _initalized.Unsubscribe(ConfigureIpc);
+        _initalized?.Unsubscribe(ConfigureIpc);
     }
 
     public class CharacterMonitor
@@ -106,12 +119,14 @@ internal sealed class AllaganToolsIPC : IDisposable
 
             CharacterId = (ulong)_delegate.GetType().GetField("CharacterId")!.GetValue(_delegate)!;
             CharacterType = (CharacterType)_delegate.GetType().GetProperty("CharacterType")!.GetValue(_delegate)!;
-            OwnerId = (ulong)_delegate.GetType().GetField("OwnerId").GetValue(_delegate);
+            OwnerId = (ulong)_delegate.GetType().GetField("OwnerId")!.GetValue(_delegate)!;
+            FreeCompanyId = (ulong)_delegate.GetType().GetField("FreeCompanyId")!.GetValue(_delegate)!;
         }
 
         public ulong CharacterId { get; }
         public CharacterType CharacterType { get; }
         public ulong OwnerId { get; }
+        public ulong FreeCompanyId { get; }
         public string Name => (string)_name.GetValue(_delegate)!;
     }
 
@@ -122,6 +137,16 @@ internal sealed class AllaganToolsIPC : IDisposable
         FreeCompanyChest,
         Housing,
         Unknown,
+    }
+
+    public struct Currencies
+    {
+        public long Gil { get; init; }
+        public long GcSeals { get; init; }
+        public long FcCredits { get; init; }
+        public long Ventures { get; init; }
+        public long CeruleumTanks { get; init; }
+        public long RepairKits { get; init; }
     }
 
     public sealed class InventoryMonitor
@@ -179,4 +204,17 @@ internal sealed class AllaganToolsIPC : IDisposable
         public uint ItemId { get; }
         public uint Quantity { get; }
     }
+
+    public sealed class InventoryWrapper
+    {
+        private readonly IEnumerable<InventoryItem> _items;
+
+        public InventoryWrapper(IEnumerable<InventoryItem> items)
+        {
+            _items = items;
+        }
+
+        public long Sum(int itemId) => _items.Where(x => x.ItemId == itemId).Sum(x => x.Quantity);
+    }
+
 }

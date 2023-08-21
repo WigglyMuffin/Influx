@@ -39,7 +39,7 @@ public class InfluxPlugin : IDalamudPlugin
         _clientState = clientState;
         _commandManager = commandManager;
         _chatGui = chatGui;
-        _allaganToolsIpc = new AllaganToolsIPC(pluginInterface, chatGui, clientState);
+        _allaganToolsIpc = new AllaganToolsIPC(pluginInterface, chatGui, _configuration);
         _influxClient = new InfluxDBClient(_configuration.Server.Server, _configuration.Server.Token);
 
         _commandManager.AddHandler("/influx", new CommandInfo(ProcessCommand));
@@ -48,8 +48,7 @@ public class InfluxPlugin : IDalamudPlugin
 
     private Configuration LoadConfig()
     {
-        var config = _pluginInterface.GetPluginConfig() as Configuration;
-        if (config != null)
+        if (_pluginInterface.GetPluginConfig() is Configuration config)
             return config;
 
         config = new Configuration();
@@ -59,49 +58,85 @@ public class InfluxPlugin : IDalamudPlugin
 
     private void ProcessCommand(string command, string arguments)
     {
-        CountGil();
+        CountGil(true);
     }
 
-    private void CountGil()
+    private void CountGil(bool printDebug = false)
     {
         if (!_clientState.IsLoggedIn)
             return;
 
         DateTime date = DateTime.UtcNow;
-        var stats = _allaganToolsIpc.CountGil();
+        IReadOnlyDictionary<AllaganToolsIPC.Character, AllaganToolsIPC.Currencies> stats;
+        try
+        {
+            stats = _allaganToolsIpc.CountCurrencies();
+        }
+        catch (Exception e)
+        {
+            _chatGui.PrintError(e.ToString());
+            return;
+        }
 
+
+        var validFcIds = stats.Keys
+            .Where(x => x.CharacterType == AllaganToolsIPC.CharacterType.Character)
+            .Select(x => x.FreeCompanyId)
+            .ToList();
         Task.Run(async () =>
         {
-            List<PointData> values = new();
-            foreach (var (character, gil) in stats)
-            {
-                if (character.CharacterType == AllaganToolsIPC.CharacterType.Character)
-                {
-                    values.Add(PointData.Measurement("currency")
-                        .Tag("player_name", character.Name)
-                        .Tag("type", character.CharacterType.ToString())
-                        .Field("gil", gil)
-                        .Timestamp(date, WritePrecision.S));
-                }
-                else if (character.CharacterType == AllaganToolsIPC.CharacterType.Retainer)
-                {
-                    var owner = stats.Keys.First(x => x.CharacterId == character.OwnerId);
-                    values.Add(PointData.Measurement("currency")
-                        .Tag("player_name", owner.Name)
-                        .Tag("type", character.CharacterType.ToString())
-                        .Tag("retainer_name", character.Name)
-                        .Field("gil", gil)
-                        .Timestamp(date, WritePrecision.S));
-                }
-            }
 
-            var writeApi = _influxClient.GetWriteApiAsync();
             try
             {
+                List<PointData> values = new();
+                foreach (var (character, currencies) in stats)
+                {
+                    if (character.CharacterType == AllaganToolsIPC.CharacterType.Character)
+                    {
+                        values.Add(PointData.Measurement("currency")
+                            .Tag("id", character.CharacterId.ToString())
+                            .Tag("player_name", character.Name)
+                            .Tag("type", character.CharacterType.ToString())
+                            .Field("gil", currencies.Gil)
+                            .Field("ventures", currencies.Ventures)
+                            .Field("ceruleum_tanks", currencies.CeruleumTanks)
+                            .Field("repair_kits", currencies.RepairKits)
+                            .Timestamp(date, WritePrecision.S));
+                    }
+                    else if (character.CharacterType == AllaganToolsIPC.CharacterType.Retainer)
+                    {
+                        var owner = stats.Keys.First(x => x.CharacterId == character.OwnerId);
+                        values.Add(PointData.Measurement("currency")
+                            .Tag("id", character.CharacterId.ToString())
+                            .Tag("player_name", owner.Name)
+                            .Tag("type", character.CharacterType.ToString())
+                            .Tag("retainer_name", character.Name)
+                            .Field("gil", currencies.Gil)
+                            .Field("ceruleum_tanks", currencies.CeruleumTanks)
+                            .Field("repair_kits", currencies.RepairKits)
+                            .Timestamp(date, WritePrecision.S));
+                    }
+                    else if (character.CharacterType == AllaganToolsIPC.CharacterType.FreeCompanyChest && validFcIds.Contains(character.CharacterId))
+                    {
+                        values.Add(PointData.Measurement("currency")
+                            .Tag("id", character.CharacterId.ToString())
+                            .Tag("fc_name", character.Name)
+                            .Tag("type", character.CharacterType.ToString())
+                            .Field("gil", currencies.Gil)
+                            .Field("fccredit", currencies.FcCredits)
+                            .Field("ceruleum_tanks", currencies.CeruleumTanks)
+                            .Field("repair_kits", currencies.RepairKits)
+                            .Timestamp(date, WritePrecision.S));
+                    }
+                }
+
+                var writeApi = _influxClient.GetWriteApiAsync();
                 await writeApi.WritePointsAsync(
                     values,
                     _configuration.Server.Bucket, _configuration.Server.Organization);
-                //_chatGui.Print($"Influx: {values.Count} points");
+
+                if (printDebug)
+                    _chatGui.Print($"Influx: {values.Count} points");
             }
             catch (Exception e)
             {
