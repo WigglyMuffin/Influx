@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
 using ImGuiNET;
+using Influx.AllaganTools;
 
 namespace Influx.Windows;
 
@@ -46,14 +46,14 @@ internal sealed class StatisticsWindow : Window
     public void OnStatisticsUpdate(StatisticsUpdate update)
     {
         var retainers = update.Currencies
-            .Where(x => x.Key.CharacterType == AllaganToolsIPC.CharacterType.Retainer)
+            .Where(x => x.Key.CharacterType == CharacterType.Retainer)
             .GroupBy(x => update.Currencies.FirstOrDefault(y => y.Key.CharacterId == x.Key.OwnerId).Key)
             .ToDictionary(x => x.Key, x => x.Select(y => y.Value).ToList());
 
-        _rows = update.Currencies.Where(x => x.Key.CharacterType == AllaganToolsIPC.CharacterType.Character)
+        _rows = update.Currencies.Where(x => x.Key.CharacterType == CharacterType.Character)
             .Select(x =>
             {
-                var currencies = new List<AllaganToolsIPC.Currencies> { x.Value };
+                var currencies = new List<Currencies> { x.Value };
                 if (retainers.TryGetValue(x.Key, out var retainerCurrencies))
                     currencies.AddRange(retainerCurrencies);
                 return new StatisticsRow
@@ -71,8 +71,8 @@ internal sealed class StatisticsWindow : Window
 
     public sealed class StatisticsRow
     {
-        public string Name { get; init; }
-        public string Type { get; init; }
+        public required string Name { get; init; }
+        public required string Type { get; init; }
         public long Gil { get; init; }
         public long FcCredits { get; init; }
     }

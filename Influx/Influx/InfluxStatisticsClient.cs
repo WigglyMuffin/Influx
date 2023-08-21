@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Game.Gui;
+using Influx.AllaganTools;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Writes;
@@ -36,10 +37,10 @@ internal class InfluxStatisticsClient : IDisposable
             return;
 
         DateTime date = DateTime.UtcNow;
-        IReadOnlyDictionary<AllaganToolsIPC.Character, AllaganToolsIPC.Currencies> stats = update.Currencies;
+        IReadOnlyDictionary<Character, Currencies> stats = update.Currencies;
 
         var validFcIds = stats.Keys
-            .Where(x => x.CharacterType == AllaganToolsIPC.CharacterType.Character)
+            .Where(x => x.CharacterType == CharacterType.Character)
             .Select(x => x.FreeCompanyId)
             .ToList();
         Task.Run(async () =>
@@ -49,7 +50,7 @@ internal class InfluxStatisticsClient : IDisposable
                 List<PointData> values = new();
                 foreach (var (character, currencies) in stats)
                 {
-                    if (character.CharacterType == AllaganToolsIPC.CharacterType.Character)
+                    if (character.CharacterType == CharacterType.Character)
                     {
                         values.Add(PointData.Measurement("currency")
                             .Tag("id", character.CharacterId.ToString())
@@ -61,7 +62,7 @@ internal class InfluxStatisticsClient : IDisposable
                             .Field("repair_kits", currencies.RepairKits)
                             .Timestamp(date, WritePrecision.S));
                     }
-                    else if (character.CharacterType == AllaganToolsIPC.CharacterType.Retainer)
+                    else if (character.CharacterType == CharacterType.Retainer)
                     {
                         var owner = stats.Keys.First(x => x.CharacterId == character.OwnerId);
                         values.Add(PointData.Measurement("currency")
@@ -74,7 +75,7 @@ internal class InfluxStatisticsClient : IDisposable
                             .Field("repair_kits", currencies.RepairKits)
                             .Timestamp(date, WritePrecision.S));
                     }
-                    else if (character.CharacterType == AllaganToolsIPC.CharacterType.FreeCompanyChest &&
+                    else if (character.CharacterType == CharacterType.FreeCompanyChest &&
                              validFcIds.Contains(character.CharacterId))
                     {
                         values.Add(PointData.Measurement("currency")

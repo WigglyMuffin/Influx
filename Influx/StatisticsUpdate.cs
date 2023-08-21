@@ -1,8 +1,9 @@
 ﻿using System.Collections.Generic;
+using Influx.AllaganTools;
 
 namespace Influx;
 
 internal sealed class StatisticsUpdate
 {
-    public IReadOnlyDictionary<AllaganToolsIPC.Character, AllaganToolsIPC.Currencies> Currencies { get; init; }
+    public required IReadOnlyDictionary<Character, Currencies> Currencies { get; init; }
 }

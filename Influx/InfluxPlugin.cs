@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using Dalamud.Game.ClientState;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui;
@@ -11,11 +8,9 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Logging;
 using Dalamud.Plugin;
 using ECommons;
+using Influx.AllaganTools;
 using Influx.Influx;
 using Influx.Windows;
-using InfluxDB.Client;
-using InfluxDB.Client.Api.Domain;
-using InfluxDB.Client.Writes;
 
 namespace Influx;
 
@@ -28,7 +23,7 @@ public class InfluxPlugin : IDalamudPlugin
     private readonly Configuration _configuration;
     private readonly ClientState _clientState;
     private readonly CommandManager _commandManager;
-    private readonly AllaganToolsIPC _allaganToolsIpc;
+    private readonly AllaganToolsIpc _allaganToolsIpc;
     private readonly InfluxStatisticsClient _influxStatisticsClient;
     private readonly WindowSystem _windowSystem;
     private readonly StatisticsWindow _statisticsWindow;
@@ -44,7 +39,7 @@ public class InfluxPlugin : IDalamudPlugin
         _configuration = LoadConfig();
         _clientState = clientState;
         _commandManager = commandManager;
-        _allaganToolsIpc = new AllaganToolsIPC(pluginInterface, chatGui, _configuration);
+        _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, _configuration);
         _influxStatisticsClient = new InfluxStatisticsClient(chatGui, _configuration);
 
         _windowSystem = new WindowSystem(typeof(InfluxPlugin).FullName);
