@@ -13,6 +13,7 @@ public sealed class Configuration : IPluginConfiguration
 
     public sealed class ServerConfiguration
     {
+        public bool Enabled { get; set; }
         public string Server { get; set; } = "http://localhost:8086";
         public string Token { get; set; } = "xxx";
         public string Organization { get; set; } = "org";

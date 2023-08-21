@@ -216,5 +216,4 @@ internal sealed class AllaganToolsIPC : IDisposable
 
         public long Sum(int itemId) => _items.Where(x => x.ItemId == itemId).Sum(x => x.Quantity);
     }
-
 }
