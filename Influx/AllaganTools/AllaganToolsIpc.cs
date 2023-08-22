@@ -7,6 +7,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Ipc.Exceptions;
 using ECommons.Reflection;
+using ECommons.Schedulers;
 
 namespace Influx.AllaganTools;
 
@@ -39,33 +40,41 @@ internal sealed class AllaganToolsIpc : IDisposable
         }
         catch (IpcNotReadyError e)
         {
-            PluginLog.Debug(e, "Not initializing ATools yet");
+            PluginLog.Error(e, "Not initializing ATools yet, ipc not ready");
         }
     }
 
     private void ConfigureIpc(bool initialized)
     {
-        try
+        PluginLog.Information("Configuring Allagan tools IPC");
+        var _ = new TickScheduler(() =>
         {
-            if (DalamudReflector.TryGetDalamudPlugin("Allagan Tools", out var it, false, true) &&
-                _isInitialized != null && _isInitialized.InvokeFunc())
+            try
             {
-                var pluginService = it.GetType().Assembly.GetType("InventoryTools.PluginService")!;
+                if (DalamudReflector.TryGetDalamudPlugin("Allagan Tools", out var it, false, true))
+                {
+                    var pluginService = it.GetType().Assembly.GetType("InventoryTools.PluginService")!;
 
-                Characters = new CharacterMonitor(pluginService.GetProperty("CharacterMonitor")!.GetValue(null)!);
-                Inventories = new InventoryMonitor(
-                    pluginService.GetProperty("InventoryMonitor")!.GetValue(null)!);
+                    Characters = new CharacterMonitor(pluginService.GetProperty("CharacterMonitor")!.GetValue(null)!);
+                    Inventories = new InventoryMonitor(
+                        pluginService.GetProperty("InventoryMonitor")!.GetValue(null)!);
+                }
+                else
+                {
+                    PluginLog.Warning("Reflection was unsuccessful");
+                }
             }
-        }
-        catch (Exception e)
-        {
-            PluginLog.Error(e, "Could not initialize IPC");
-            _chatGui.PrintError(e.ToString());
-        }
+            catch (Exception e)
+            {
+                PluginLog.Error(e, "Could not initialize IPC");
+                _chatGui.PrintError(e.ToString());
+            }
+        }, 100);
     }
 
     public Dictionary<Character, Currencies> CountCurrencies()
     {
+        PluginLog.Debug($"{Characters.GetType()}, {Inventories.GetType()}");
         var characters = Characters.All.ToDictionary(x => x.CharacterId, x => x);
         return Inventories.All
             .Where(x => !_configuration.ExcludedCharacters.Contains(x.Key))
