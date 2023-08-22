@@ -37,9 +37,9 @@ internal class InfluxStatisticsClient : IDisposable
             return;
 
         DateTime date = DateTime.UtcNow;
-        IReadOnlyDictionary<Character, Currencies> stats = update.Currencies;
+        IReadOnlyDictionary<Character, Currencies> currencyStats = update.Currencies;
 
-        var validFcIds = stats.Keys
+        var validFcIds = currencyStats.Keys
             .Where(x => x.CharacterType == CharacterType.Character)
             .Select(x => x.FreeCompanyId)
             .ToList();
@@ -48,7 +48,7 @@ internal class InfluxStatisticsClient : IDisposable
             try
             {
                 List<PointData> values = new();
-                foreach (var (character, currencies) in stats)
+                foreach (var (character, currencies) in currencyStats)
                 {
                     if (character.CharacterType == CharacterType.Character)
                     {
@@ -64,7 +64,7 @@ internal class InfluxStatisticsClient : IDisposable
                     }
                     else if (character.CharacterType == CharacterType.Retainer)
                     {
-                        var owner = stats.Keys.First(x => x.CharacterId == character.OwnerId);
+                        var owner = currencyStats.Keys.First(x => x.CharacterId == character.OwnerId);
                         values.Add(PointData.Measurement("currency")
                             .Tag("id", character.CharacterId.ToString())
                             .Tag("player_name", owner.Name)
@@ -87,6 +87,23 @@ internal class InfluxStatisticsClient : IDisposable
                             .Field("ceruleum_tanks", currencies.CeruleumTanks)
                             .Field("repair_kits", currencies.RepairKits)
                             .Timestamp(date, WritePrecision.S));
+                    }
+                }
+
+                foreach (var (fc, subs) in update.Submarines)
+                {
+                    if (validFcIds.Contains(fc.CharacterId))
+                    {
+                        foreach (var sub in subs)
+                        {
+                            values.Add(PointData.Measurement("submersibles")
+                                .Tag("id", fc.CharacterId.ToString())
+                                .Tag("fc_name", fc.Name)
+                                .Tag("sub_id", $"{fc.CharacterId}_{sub.Id}")
+                                .Tag("sub_name", sub.Name)
+                                .Field("level", sub.Level)
+                                .Timestamp(date, WritePrecision.S));
+                        }
                     }
                 }
 

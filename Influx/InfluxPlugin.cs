@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading;
 using Dalamud.Game.ClientState;
 using Dalamud.Game.Command;
@@ -10,6 +11,7 @@ using Dalamud.Plugin;
 using ECommons;
 using Influx.AllaganTools;
 using Influx.Influx;
+using Influx.SubmarineTracker;
 using Influx.Windows;
 
 namespace Influx;
@@ -24,6 +26,7 @@ public class InfluxPlugin : IDalamudPlugin
     private readonly ClientState _clientState;
     private readonly CommandManager _commandManager;
     private readonly AllaganToolsIpc _allaganToolsIpc;
+    private readonly SubmarineTrackerIpc _submarineTrackerIpc;
     private readonly InfluxStatisticsClient _influxStatisticsClient;
     private readonly WindowSystem _windowSystem;
     private readonly StatisticsWindow _statisticsWindow;
@@ -40,6 +43,7 @@ public class InfluxPlugin : IDalamudPlugin
         _clientState = clientState;
         _commandManager = commandManager;
         _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, _configuration);
+        _submarineTrackerIpc = new SubmarineTrackerIpc(chatGui);
         _influxStatisticsClient = new InfluxStatisticsClient(chatGui, _configuration);
 
         _windowSystem = new WindowSystem(typeof(InfluxPlugin).FullName);
@@ -76,9 +80,12 @@ public class InfluxPlugin : IDalamudPlugin
 
         try
         {
+            var currencies = _allaganToolsIpc.CountCurrencies();
+            var characters = currencies.Keys.ToList();
             var update = new StatisticsUpdate
             {
-                Currencies = _allaganToolsIpc.CountCurrencies(),
+                Currencies = currencies,
+                Submarines = _submarineTrackerIpc.GetSubmarineStats(characters),
             };
             _statisticsWindow.OnStatisticsUpdate(update);
             _influxStatisticsClient.OnStatisticsUpdate(update);
