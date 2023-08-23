@@ -86,6 +86,9 @@ internal sealed class AllaganToolsIpc : IDisposable
                     return new Currencies
                     {
                         Gil = inv.Sum(1),
+                        GcSealsMaelstrom = inv.Sum(20),
+                        GcSealsTwinAdders = inv.Sum(21),
+                        GcSealsImmortalFlames = inv.Sum(22),
                         FcCredits = inv.Sum(80),
                         Ventures = inv.Sum(21072),
                         CeruleumTanks = inv.Sum(10155),

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Game.Gui;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Influx.AllaganTools;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
@@ -61,6 +62,40 @@ internal class InfluxStatisticsClient : IDisposable
                             .Field("ceruleum_tanks", currencies.CeruleumTanks)
                             .Field("repair_kits", currencies.RepairKits)
                             .Timestamp(date, WritePrecision.S));
+
+                        if (update.LocalStats.TryGetValue(character, out var localStats))
+                        {
+                            values.Add(PointData.Measurement("grandcompany")
+                                .Tag("id", character.CharacterId.ToString())
+                                .Tag("player_name", character.Name)
+                                .Tag("type", character.CharacterType.ToString())
+                                .Field("gc", localStats.GrandCompany)
+                                .Field("gc_rank", localStats.GcRank)
+                                .Field("seals", (GrandCompany)localStats.GrandCompany switch
+                                {
+                                    GrandCompany.Maelstrom => currencies.GcSealsMaelstrom,
+                                    GrandCompany.TwinAdder => currencies.GcSealsTwinAdders,
+                                    GrandCompany.ImmortalFlames => currencies.GcSealsImmortalFlames,
+                                    _ => 0,
+                                })
+                                .Field("seal_cap", localStats.GcRank switch
+                                {
+                                    1 => 10_000,
+                                    2 => 15_000,
+                                    3 => 20_000,
+                                    4 => 25_000,
+                                    5 => 30_000,
+                                    6 => 35_000,
+                                    7 => 40_000,
+                                    8 => 45_000,
+                                    9 => 50_000,
+                                    10 => 80_000,
+                                    11 => 90_000,
+                                    _ => 0,
+                                })
+                                .Field("squadron_unlocked", localStats?.SquadronUnlocked == true ? 1 : 0)
+                                .Timestamp(date, WritePrecision.S));
+                        }
                     }
                     else if (character.CharacterType == CharacterType.Retainer)
                     {

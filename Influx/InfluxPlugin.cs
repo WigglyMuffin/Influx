@@ -11,6 +11,7 @@ using Dalamud.Plugin;
 using ECommons;
 using Influx.AllaganTools;
 using Influx.Influx;
+using Influx.LocalStatistics;
 using Influx.SubmarineTracker;
 using Influx.Windows;
 
@@ -27,6 +28,7 @@ public class InfluxPlugin : IDalamudPlugin
     private readonly CommandManager _commandManager;
     private readonly AllaganToolsIpc _allaganToolsIpc;
     private readonly SubmarineTrackerIpc _submarineTrackerIpc;
+    private readonly LocalStatsCalculator _localStatsCalculator;
     private readonly InfluxStatisticsClient _influxStatisticsClient;
     private readonly WindowSystem _windowSystem;
     private readonly StatisticsWindow _statisticsWindow;
@@ -44,6 +46,7 @@ public class InfluxPlugin : IDalamudPlugin
         _commandManager = commandManager;
         _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, _configuration);
         _submarineTrackerIpc = new SubmarineTrackerIpc(chatGui);
+        _localStatsCalculator = new LocalStatsCalculator(pluginInterface, clientState, chatGui);
         _influxStatisticsClient = new InfluxStatisticsClient(chatGui, _configuration);
 
         _windowSystem = new WindowSystem(typeof(InfluxPlugin).FullName);
@@ -86,6 +89,8 @@ public class InfluxPlugin : IDalamudPlugin
             {
                 Currencies = currencies,
                 Submarines = _submarineTrackerIpc.GetSubmarineStats(characters),
+                LocalStats = _localStatsCalculator.GetAllCharacterStats()
+                    .ToDictionary(x => characters.First(y => y.CharacterId == x.Key), x => x.Value),
             };
             _statisticsWindow.OnStatisticsUpdate(update);
             _influxStatisticsClient.OnStatisticsUpdate(update);
@@ -103,6 +108,7 @@ public class InfluxPlugin : IDalamudPlugin
         _windowSystem.RemoveAllWindows();
         _commandManager.RemoveHandler("/influx");
         _influxStatisticsClient.Dispose();
+        _localStatsCalculator.Dispose();
         _allaganToolsIpc.Dispose();
 
         ECommonsMain.Dispose();
