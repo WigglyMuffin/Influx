@@ -1,4 +1,6 @@
-﻿namespace Influx.LocalStatistics;
+﻿using System.Collections.Generic;
+
+namespace Influx.LocalStatistics;
 
 public record LocalStats
 {
@@ -6,4 +8,6 @@ public record LocalStats
     public byte GrandCompany { get; init; }
     public byte GcRank { get; init; }
     public bool SquadronUnlocked { get; init; }
+    public byte MaxLevel { get; init; } = 90;
+    public List<short> ClassJobLevels { get; set; } = new();
 }

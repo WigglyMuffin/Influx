@@ -2,6 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
+using Dalamud.Data;
 using Dalamud.Game.ClientState;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui;
@@ -36,7 +37,7 @@ public class InfluxPlugin : IDalamudPlugin
     private readonly Timer _timer;
 
     public InfluxPlugin(DalamudPluginInterface pluginInterface, ClientState clientState,
-        CommandManager commandManager, ChatGui chatGui)
+        CommandManager commandManager, ChatGui chatGui, DataManager dataManager)
     {
         ECommonsMain.Init(pluginInterface, this, Module.DalamudReflector);
 
@@ -47,7 +48,7 @@ public class InfluxPlugin : IDalamudPlugin
         _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, _configuration);
         _submarineTrackerIpc = new SubmarineTrackerIpc(chatGui);
         _localStatsCalculator = new LocalStatsCalculator(pluginInterface, clientState, chatGui);
-        _influxStatisticsClient = new InfluxStatisticsClient(chatGui, _configuration);
+        _influxStatisticsClient = new InfluxStatisticsClient(chatGui, _configuration, dataManager);
 
         _windowSystem = new WindowSystem(typeof(InfluxPlugin).FullName);
         _statisticsWindow = new StatisticsWindow();
@@ -85,11 +86,15 @@ public class InfluxPlugin : IDalamudPlugin
         {
             var currencies = _allaganToolsIpc.CountCurrencies();
             var characters = currencies.Keys.ToList();
+            if (characters.Count == 0)
+                return;
+
             var update = new StatisticsUpdate
             {
                 Currencies = currencies,
                 Submarines = _submarineTrackerIpc.GetSubmarineStats(characters),
                 LocalStats = _localStatsCalculator.GetAllCharacterStats()
+                    .Where(x => characters.Any(y => y.CharacterId == x.Key))
                     .ToDictionary(x => characters.First(y => y.CharacterId == x.Key), x => x.Value),
             };
             _statisticsWindow.OnStatisticsUpdate(update);

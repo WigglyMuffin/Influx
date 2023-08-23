@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using Dalamud.Data;
 using Dalamud.Game.ClientState;
 using Dalamud.Game.Gui;
 using Dalamud.Logging;
@@ -19,7 +20,10 @@ public class LocalStatsCalculator : IDisposable
     private readonly ChatGui _chatGui;
     private readonly Dictionary<ulong, LocalStats> _cache = new();
 
-    public LocalStatsCalculator(DalamudPluginInterface pluginInterface, ClientState clientState, ChatGui chatGui)
+    public LocalStatsCalculator(
+        DalamudPluginInterface pluginInterface,
+        ClientState clientState,
+        ChatGui chatGui)
     {
         _pluginInterface = pluginInterface;
         _clientState = clientState;
@@ -87,6 +91,8 @@ public class LocalStatsCalculator : IDisposable
                     GrandCompany.ImmortalFlames => QuestManager.IsQuestComplete(67927),
                     _ => false
                 },
+                MaxLevel = playerState->MaxLevel,
+                ClassJobLevels = ExtractClassJobLevels(playerState),
             };
 
             if (_cache.TryGetValue(localContentId, out var existingStats))
@@ -111,6 +117,14 @@ public class LocalStatsCalculator : IDisposable
         {
             PluginLog.Error(e, "Failed to update local stats");
         }
+    }
+
+    private unsafe List<short> ExtractClassJobLevels(PlayerState* playerState)
+    {
+        List<short> levels = new();
+        for (int i = 0; i < 30; ++i)
+            levels.Add(playerState->ClassJobLevelArray[i]);
+        return levels;
     }
 
     public IReadOnlyDictionary<ulong, LocalStats> GetAllCharacterStats() => _cache.AsReadOnly();

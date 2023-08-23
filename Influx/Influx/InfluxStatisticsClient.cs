@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Dalamud.Data;
 using Dalamud.Game.Gui;
-using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using Dalamud.Logging;
 using Influx.AllaganTools;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Writes;
+using Lumina.Excel.GeneratedSheets;
+using GrandCompany = FFXIVClientStructs.FFXIV.Client.UI.Agent.GrandCompany;
 
 namespace Influx.Influx;
 
@@ -21,13 +24,19 @@ internal class InfluxStatisticsClient : IDisposable
     private readonly Configuration _configuration;
     private readonly Mutex _mutex;
     private readonly bool _mutexCreated;
+    private readonly IReadOnlyDictionary<byte, byte> _classJobToArrayIndex;
+    private readonly IReadOnlyDictionary<byte, string> _classJobNames;
 
-    public InfluxStatisticsClient(ChatGui chatGui, Configuration configuration)
+    public InfluxStatisticsClient(ChatGui chatGui, Configuration configuration, DataManager dataManager)
     {
         _influxClient = new InfluxDBClient(configuration.Server.Server, configuration.Server.Token);
         _chatGui = chatGui;
         _configuration = configuration;
         _mutex = new Mutex(true, MutexName, out _mutexCreated);
+        _classJobToArrayIndex = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0)
+            .ToDictionary(x => (byte)x.RowId, x => (byte)x.ExpArrayIndex);
+        _classJobNames = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0)
+            .ToDictionary(x => (byte)x.RowId, x => x.Abbreviation.ToString());
     }
 
     public bool Enabled => _configuration.Server.Enabled;
@@ -109,6 +118,30 @@ internal class InfluxStatisticsClient : IDisposable
                             .Field("ceruleum_tanks", currencies.CeruleumTanks)
                             .Field("repair_kits", currencies.RepairKits)
                             .Timestamp(date, WritePrecision.S));
+
+                        if (update.LocalStats.TryGetValue(owner, out var ownerStats) && character.ClassJob != 0)
+                        {
+                            values.Add(PointData.Measurement("retainer")
+                                .Tag("id", character.CharacterId.ToString())
+                                .Tag("player_name", owner.Name)
+                                .Tag("type", character.CharacterType.ToString())
+                                .Tag("retainer_name", character.Name)
+                                .Tag("class", _classJobNames[character.ClassJob])
+                                .Field("level", character.Level)
+                                .Field("is_max_level", character.Level == ownerStats.MaxLevel ? 1 : 0)
+                                .Field("can_reach_max_level",
+                                    ownerStats.ClassJobLevels.Count > 0 &&
+                                    ownerStats.ClassJobLevels[_classJobToArrayIndex[character.ClassJob]] ==
+                                    ownerStats.MaxLevel
+                                        ? 1
+                                        : 0)
+                                .Field("levels_before_cap",
+                                    ownerStats.ClassJobLevels.Count > 0
+                                        ? ownerStats.ClassJobLevels[_classJobToArrayIndex[character.ClassJob]] -
+                                          character.Level
+                                        : 0)
+                                .Timestamp(date, WritePrecision.S));
+                        }
                     }
                     else if (character.CharacterType == CharacterType.FreeCompanyChest &&
                              validFcIds.Contains(character.CharacterId))
