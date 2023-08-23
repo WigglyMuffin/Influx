@@ -23,7 +23,8 @@ internal sealed class Inventory
     public IEnumerable<InventoryItem> GetAllItems() =>
         ((IEnumerable)_getAllInventories.Invoke(_delegate, Array.Empty<object>())!)
         .Cast<IEnumerable>()
-        .SelectMany(x => x.Cast<object>())
-        .Select(x => new InventoryItem(x))
+        .SelectMany(x => x.Cast<object?>())
+        .Where(x => x != null)
+        .Select(x => new InventoryItem(x!))
         .ToList();
 }
