@@ -22,8 +22,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="DalamudPackager" Version="2.1.11"/>
-        <PackageReference Include="InfluxDB.Client" Version="4.13.0"/>
+        <PackageReference Include="DalamudPackager" Version="2.1.11" />
+        <PackageReference Include="InfluxDB.Client" Version="4.13.0" />
     </ItemGroup>
 
     <ItemGroup>
@@ -58,10 +58,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\ECommons\ECommons\ECommons.csproj"/>
+        <ProjectReference Include="..\ECommons\ECommons\ECommons.csproj" />
     </ItemGroup>
 
     <Target Name="RenameLatestZip" AfterTargets="PackagePlugin">
-        <Exec Command="rename $(OutDir)$(AssemblyName)\latest.zip $(AssemblyName)-$(Version).zip"/>
+        <Exec Command="rename $(OutDir)$(AssemblyName)\latest.zip $(AssemblyName)-$(Version).zip" />
     </Target>
 </Project>

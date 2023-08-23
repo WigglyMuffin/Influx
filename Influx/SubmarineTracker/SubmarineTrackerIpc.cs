@@ -53,34 +53,3 @@ internal sealed class SubmarineTrackerIpc
             return new Dictionary<Character, List<SubmarineStats>>();
     }
 }
-
-public sealed class FcSubmarines
-{
-    private readonly object _delegate;
-
-    public FcSubmarines(object @delegate)
-    {
-        _delegate = @delegate;
-        Submarines = ((IEnumerable)_delegate.GetType().GetField("Submarines")!.GetValue(_delegate)!)
-            .Cast<object>()
-            .Select(x => new Submarine(x))
-            .ToList();
-    }
-
-    public List<Submarine> Submarines { get; }
-}
-
-public sealed class Submarine
-{
-    private readonly object _delegate;
-
-    public Submarine(object @delegate)
-    {
-        _delegate = @delegate;
-        Name = (string)_delegate.GetType().GetProperty("Name")!.GetValue(_delegate)!;
-        Level = (ushort)_delegate.GetType().GetProperty("Rank")!.GetValue(_delegate)!;
-    }
-
-    public string Name { get; set; }
-    public ushort Level { get; }
-}
