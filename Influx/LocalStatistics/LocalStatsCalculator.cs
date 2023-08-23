@@ -51,9 +51,9 @@ public class LocalStatsCalculator : IDisposable
 
     public void Dispose()
     {
-        _clientState.Login += UpdateStatistics;
-        _clientState.Logout += UpdateStatistics;
-        _clientState.TerritoryChanged += UpdateStatistics;
+        _clientState.Login -= UpdateStatistics;
+        _clientState.Logout -= UpdateStatistics;
+        _clientState.TerritoryChanged -= UpdateStatistics;
     }
 
     private void UpdateStatistics(object? sender, EventArgs e) => UpdateStatistics();
