@@ -78,6 +78,7 @@ internal sealed class AllaganToolsIpc : IDisposable
         var characters = Characters.All.ToDictionary(x => x.CharacterId, x => x);
         return Inventories.All
             .Where(x => !_configuration.ExcludedCharacters.Contains(x.Key))
+            .Where(x => characters.ContainsKey(x.Value.CharacterId))
             .ToDictionary(
                 x => characters[x.Value.CharacterId],
                 y =>
