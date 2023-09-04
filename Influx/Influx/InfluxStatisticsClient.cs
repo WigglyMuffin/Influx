@@ -102,8 +102,19 @@ internal class InfluxStatisticsClient : IDisposable
                                     11 => 90_000,
                                     _ => 0,
                                 })
-                                .Field("squadron_unlocked", localStats?.SquadronUnlocked == true ? 1 : 0)
+                                .Field("squadron_unlocked", localStats.SquadronUnlocked == true ? 1 : 0)
                                 .Timestamp(date, WritePrecision.S));
+
+                            if (localStats.MsqCount != -1)
+                            {
+                                values.Add(PointData.Measurement("quests")
+                                    .Tag("id", character.CharacterId.ToString())
+                                    .Tag("player_name", character.Name)
+                                    .Tag("msq_name", localStats.MsqName)
+                                    .Field("msq_count", localStats.MsqCount)
+                                    .Field("msq_genre", localStats.MsqGenre)
+                                    .Timestamp(date, WritePrecision.S));
+                            }
                         }
                     }
                     else if (character.CharacterType == CharacterType.Retainer)

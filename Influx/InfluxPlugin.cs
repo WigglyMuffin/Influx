@@ -47,7 +47,7 @@ public class InfluxPlugin : IDalamudPlugin
         _commandManager = commandManager;
         _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, _configuration);
         _submarineTrackerIpc = new SubmarineTrackerIpc(chatGui);
-        _localStatsCalculator = new LocalStatsCalculator(pluginInterface, clientState, chatGui);
+        _localStatsCalculator = new LocalStatsCalculator(pluginInterface, clientState, chatGui, dataManager);
         _influxStatisticsClient = new InfluxStatisticsClient(chatGui, _configuration, dataManager);
 
         _windowSystem = new WindowSystem(typeof(InfluxPlugin).FullName);

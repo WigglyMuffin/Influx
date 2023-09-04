@@ -1,29 +1,50 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using Dalamud.Data;
 using Dalamud.Game.ClientState;
 using Dalamud.Game.Gui;
 using Dalamud.Logging;
 using Dalamud.Plugin;
+using ECommons.Schedulers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
-using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using Lumina.Excel.GeneratedSheets;
 using Newtonsoft.Json;
+using GrandCompany = FFXIVClientStructs.FFXIV.Client.UI.Agent.GrandCompany;
 
 namespace Influx.LocalStatistics;
 
 public class LocalStatsCalculator : IDisposable
 {
+    private const uint ComingToGridania = 65575;
+    private const uint ComingToLimsa = 65643;
+    private const uint ComingToUldah = 66130;
+
+    private const uint EnvoyGridania = 66043;
+    private const uint EnvoyLimsa = 66082;
+    private const uint EnvoyUldah = 66064;
+
+    private const uint JointQuest = 65781;
+
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly ClientState _clientState;
     private readonly ChatGui _chatGui;
     private readonly Dictionary<ulong, LocalStats> _cache = new();
 
+    private  IReadOnlyList<QuestInfo>? _gridaniaStart;
+    private  IReadOnlyList<QuestInfo>? _limsaStart;
+    private  IReadOnlyList<QuestInfo>? _uldahStart;
+    private  IReadOnlyList<QuestInfo>? _msqQuests;
+
+
     public LocalStatsCalculator(
         DalamudPluginInterface pluginInterface,
         ClientState clientState,
-        ChatGui chatGui)
+        ChatGui chatGui,
+        DataManager dataManager)
     {
         _pluginInterface = pluginInterface;
         _clientState = clientState;
@@ -32,6 +53,41 @@ public class LocalStatsCalculator : IDisposable
         _clientState.Login += UpdateStatistics;
         _clientState.Logout += UpdateStatistics;
         _clientState.TerritoryChanged += UpdateStatistics;
+
+        Task.Run(() =>
+        {
+            List<QuestInfo> msq = new();
+            foreach (var quest in dataManager.GetExcelSheet<Quest>()!.Where(x => x.JournalGenre.Row is >= 1 and <= 12))
+            {
+                var previousQuests = quest.PreviousQuest?.Select(x => x.Row).Where(x => x != 0).ToList();
+                msq.Add(new QuestInfo
+                {
+                    RowId = quest.RowId,
+                    Name = quest.Name.ToString(),
+                    PreviousQuestIds = previousQuests ?? new(),
+                    Genre = quest.JournalGenre.Row,
+                });
+            }
+
+            _gridaniaStart = PopulateStartingCities(msq, EnvoyGridania, ComingToGridania, false);
+            _limsaStart = PopulateStartingCities(msq, EnvoyLimsa, ComingToLimsa, true);
+            _uldahStart = PopulateStartingCities(msq, EnvoyUldah, ComingToUldah, true);
+
+            List<QuestInfo> sortedQuests = new();
+            sortedQuests.Add(msq.First(x => x.RowId == JointQuest));
+            msq.Remove(sortedQuests[0]);
+
+            QuestInfo? qq = msq.FirstOrDefault();
+            while ((qq = msq.FirstOrDefault(quest => quest.PreviousQuestIds.Count == 0 ||
+                                                     quest.PreviousQuestIds.All(
+                                                         x => sortedQuests.Any(y => x == y.RowId)))) != null)
+            {
+                sortedQuests.Add(qq);
+                msq.Remove(qq);
+            }
+
+            _msqQuests = sortedQuests.AsReadOnly();
+        });
 
         foreach (var file in _pluginInterface.ConfigDirectory.GetFiles("l.*.json"))
         {
@@ -51,6 +107,38 @@ public class LocalStatsCalculator : IDisposable
 
         if (_clientState.IsLoggedIn)
             UpdateStatistics();
+    }
+
+    private IReadOnlyList<QuestInfo> PopulateStartingCities(List<QuestInfo> quests, uint envoyQuestId, uint startingQuestId, bool popCallOfTheSea)
+    {
+        QuestInfo callOfTheSea = quests.First(x => x.PreviousQuestIds.Contains(envoyQuestId));
+        if (popCallOfTheSea)
+            quests.Remove(callOfTheSea);
+
+        List<QuestInfo> startingCityQuests = new List<QuestInfo>{ callOfTheSea };
+        uint? questId = envoyQuestId;
+        QuestInfo? quest;
+
+        do
+        {
+            quest = quests.First(x => x.RowId == questId);
+            quests.Remove(quest);
+
+            if (quest.Name == "Close to Home")
+            {
+                quest = new QuestInfo
+                {
+                    RowId = startingQuestId,
+                    Name = "Coming to ...",
+                    PreviousQuestIds = new(),
+                };
+            }
+
+            startingCityQuests.Add(quest);
+            questId = quest.PreviousQuestIds.FirstOrDefault();
+        } while (questId != null && questId != 0);
+
+        return Enumerable.Reverse(startingCityQuests).ToList().AsReadOnly();
     }
 
     public void Dispose()
@@ -93,7 +181,42 @@ public class LocalStatsCalculator : IDisposable
                 },
                 MaxLevel = playerState->MaxLevel,
                 ClassJobLevels = ExtractClassJobLevels(playerState),
+                StartingTown = playerState->StartTown,
             };
+
+            if (_msqQuests != null)
+            {
+                if (QuestManager.IsQuestComplete(JointQuest))
+                {
+                    var quests = _msqQuests.Where(x => QuestManager.IsQuestComplete(x.RowId)).ToList();
+                    localStats.MsqCount = 24 + quests.Count;
+                    localStats.MsqName = quests.Last().Name;
+                    localStats.MsqGenre = quests.Last().Genre;
+                }
+                else
+                {
+                    PluginLog.Information($"XX → {playerState->StartTown}");
+                    IReadOnlyList<QuestInfo> cityQuests = playerState->StartTown switch
+                    {
+                        1 => _limsaStart!,
+                        2 => _gridaniaStart!,
+                        3 => _uldahStart!,
+                        _ => new List<QuestInfo>(),
+                    };
+                    var quests = cityQuests.Where(x => QuestManager.IsQuestComplete(x.RowId)).ToList();
+                    localStats.MsqCount = quests.Count;
+                    localStats.MsqName = quests.LastOrDefault()?.Name ?? string.Empty;
+                    localStats.MsqGenre = quests.LastOrDefault()?.Genre ?? 0;
+                }
+            }
+            else
+            {
+                localStats.MsqCount = -1;
+                localStats.MsqName = string.Empty;
+                localStats.MsqGenre = 0;
+            }
+
+            PluginLog.Information($"ls → {localStats.MsqCount}, {localStats.MsqName}");
 
             if (_cache.TryGetValue(localContentId, out var existingStats))
             {
