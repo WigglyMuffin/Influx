@@ -66,6 +66,7 @@ internal class InfluxStatisticsClient : IDisposable
                             .Tag("id", character.CharacterId.ToString())
                             .Tag("player_name", character.Name)
                             .Tag("type", character.CharacterType.ToString())
+                            .Tag("fc_id", character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
                             .Field("gil", currencies.Gil)
                             .Field("ventures", currencies.Ventures)
                             .Field("ceruleum_tanks", currencies.CeruleumTanks)
@@ -78,6 +79,7 @@ internal class InfluxStatisticsClient : IDisposable
                                 .Tag("id", character.CharacterId.ToString())
                                 .Tag("player_name", character.Name)
                                 .Tag("type", character.CharacterType.ToString())
+                                .Tag("fc_id", character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
                                 .Field("gc", localStats.GrandCompany)
                                 .Field("gc_rank", localStats.GcRank)
                                 .Field("seals", (GrandCompany)localStats.GrandCompany switch
@@ -111,6 +113,7 @@ internal class InfluxStatisticsClient : IDisposable
                                     .Tag("id", character.CharacterId.ToString())
                                     .Tag("player_name", character.Name)
                                     .Tag("msq_name", localStats.MsqName)
+                                    .Tag("fc_id", character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
                                     .Field("msq_count", localStats.MsqCount)
                                     .Field("msq_genre", localStats.MsqGenre)
                                     .Timestamp(date, WritePrecision.S));
