@@ -9,7 +9,7 @@ public sealed class Configuration : IPluginConfiguration
 
     public ServerConfiguration Server { get; set; } = new();
 
-    public List<ulong> ExcludedCharacters { get; set; } = new();
+    public List<CharacterInfo> IncludedCharacters { get; set; } = new();
 
     public sealed class ServerConfiguration
     {
@@ -18,5 +18,12 @@ public sealed class Configuration : IPluginConfiguration
         public string Token { get; set; } = "xxx";
         public string Organization { get; set; } = "org";
         public string Bucket { get; set; } = "bucket";
+    }
+
+    public sealed class CharacterInfo
+    {
+        public ulong LocalContentId { get; set; }
+        public string? CachedPlayerName { get; set; }
+        public string? CachedWorldName { get; set; }
     }
 }

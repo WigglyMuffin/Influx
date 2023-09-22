@@ -34,10 +34,10 @@ public class LocalStatsCalculator : IDisposable
     private readonly ChatGui _chatGui;
     private readonly Dictionary<ulong, LocalStats> _cache = new();
 
-    private  IReadOnlyList<QuestInfo>? _gridaniaStart;
-    private  IReadOnlyList<QuestInfo>? _limsaStart;
-    private  IReadOnlyList<QuestInfo>? _uldahStart;
-    private  IReadOnlyList<QuestInfo>? _msqQuests;
+    private IReadOnlyList<QuestInfo>? _gridaniaStart;
+    private IReadOnlyList<QuestInfo>? _limsaStart;
+    private IReadOnlyList<QuestInfo>? _uldahStart;
+    private IReadOnlyList<QuestInfo>? _msqQuests;
 
 
     public LocalStatsCalculator(
@@ -109,13 +109,14 @@ public class LocalStatsCalculator : IDisposable
             UpdateStatistics();
     }
 
-    private IReadOnlyList<QuestInfo> PopulateStartingCities(List<QuestInfo> quests, uint envoyQuestId, uint startingQuestId, bool popCallOfTheSea)
+    private IReadOnlyList<QuestInfo> PopulateStartingCities(List<QuestInfo> quests, uint envoyQuestId,
+        uint startingQuestId, bool popCallOfTheSea)
     {
         QuestInfo callOfTheSea = quests.First(x => x.PreviousQuestIds.Contains(envoyQuestId));
         if (popCallOfTheSea)
             quests.Remove(callOfTheSea);
 
-        List<QuestInfo> startingCityQuests = new List<QuestInfo>{ callOfTheSea };
+        List<QuestInfo> startingCityQuests = new List<QuestInfo> { callOfTheSea };
         uint? questId = envoyQuestId;
         QuestInfo? quest;
 

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Data;
+using Dalamud.Game.ClientState;
 using Dalamud.Game.Gui;
 using Dalamud.Logging;
 using Influx.AllaganTools;
@@ -22,17 +23,18 @@ internal class InfluxStatisticsClient : IDisposable
     private readonly InfluxDBClient _influxClient;
     private readonly ChatGui _chatGui;
     private readonly Configuration _configuration;
-    private readonly Mutex _mutex;
-    private readonly bool _mutexCreated;
+    private readonly ClientState _clientState;
     private readonly IReadOnlyDictionary<byte, byte> _classJobToArrayIndex;
     private readonly IReadOnlyDictionary<byte, string> _classJobNames;
 
-    public InfluxStatisticsClient(ChatGui chatGui, Configuration configuration, DataManager dataManager)
+    public InfluxStatisticsClient(ChatGui chatGui, Configuration configuration, DataManager dataManager,
+        ClientState clientState)
     {
         _influxClient = new InfluxDBClient(configuration.Server.Server, configuration.Server.Token);
         _chatGui = chatGui;
         _configuration = configuration;
-        _mutex = new Mutex(true, MutexName, out _mutexCreated);
+        _clientState = clientState;
+
         _classJobToArrayIndex = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0)
             .ToDictionary(x => (byte)x.RowId, x => (byte)x.ExpArrayIndex);
         _classJobNames = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0)
@@ -43,7 +45,7 @@ internal class InfluxStatisticsClient : IDisposable
 
     public void OnStatisticsUpdate(StatisticsUpdate update)
     {
-        if (!Enabled || !_mutexCreated)
+        if (!Enabled || _configuration.IncludedCharacters.All(x => x.LocalContentId != _clientState.LocalContentId))
             return;
 
         DateTime date = DateTime.UtcNow;
@@ -113,7 +115,8 @@ internal class InfluxStatisticsClient : IDisposable
                                     .Tag("id", character.CharacterId.ToString())
                                     .Tag("player_name", character.Name)
                                     .Tag("msq_name", localStats.MsqName)
-                                    .Tag("fc_id", character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
+                                    .Tag("fc_id",
+                                        character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
                                     .Field("msq_count", localStats.MsqCount)
                                     .Field("msq_genre", localStats.MsqGenre)
                                     .Timestamp(date, WritePrecision.S));
@@ -205,7 +208,6 @@ internal class InfluxStatisticsClient : IDisposable
 
     public void Dispose()
     {
-        _mutex.Dispose();
         _influxClient.Dispose();
     }
 }
