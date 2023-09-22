@@ -47,7 +47,7 @@ internal sealed class AllaganToolsIpc : IDisposable
     private void ConfigureIpc(bool initialized)
     {
         PluginLog.Information("Configuring Allagan tools IPC");
-        var _ = new TickScheduler(() =>
+        _ = new TickScheduler(() =>
         {
             try
             {
