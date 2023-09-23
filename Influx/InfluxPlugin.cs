@@ -94,13 +94,19 @@ public class InfluxPlugin : IDalamudPlugin
             var update = new StatisticsUpdate
             {
                 Currencies = currencies
-                    .Where(x => _configuration.IncludedCharacters.Any(y => y.LocalContentId == x.Key.CharacterId || y.LocalContentId == x.Key.OwnerId))
+                    .Where(x => _configuration.IncludedCharacters.Any(y =>
+                        y.LocalContentId == x.Key.CharacterId ||
+                        y.LocalContentId == x.Key.OwnerId ||
+                        characters.Any(z => y.LocalContentId == z.CharacterId && z.FreeCompanyId == x.Key.CharacterId)))
                     .ToDictionary(x => x.Key, x => x.Value),
                 Submarines = _submarineTrackerIpc.GetSubmarineStats(characters),
                 LocalStats = _localStatsCalculator.GetAllCharacterStats()
                     .Where(x => characters.Any(y => y.CharacterId == x.Key))
                     .ToDictionary(x => characters.First(y => y.CharacterId == x.Key), x => x.Value)
-                    .Where(x => _configuration.IncludedCharacters.Any(y => y.LocalContentId == x.Key.CharacterId || y.LocalContentId == x.Key.OwnerId))
+                    .Where(x => _configuration.IncludedCharacters.Any(y =>
+                        y.LocalContentId == x.Key.CharacterId ||
+                        y.LocalContentId == x.Key.OwnerId ||
+                        characters.Any(z => y.LocalContentId == z.CharacterId && z.FreeCompanyId == x.Key.CharacterId)))
                     .ToDictionary(x => x.Key, x => x.Value),
             };
             _statisticsWindow.OnStatisticsUpdate(update);
