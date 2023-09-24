@@ -26,6 +26,7 @@ internal class InfluxStatisticsClient : IDisposable
     private readonly ClientState _clientState;
     private readonly IReadOnlyDictionary<byte, byte> _classJobToArrayIndex;
     private readonly IReadOnlyDictionary<byte, string> _classJobNames;
+    private readonly Dictionary<sbyte, string> _expToJobs;
 
     public InfluxStatisticsClient(ChatGui chatGui, Configuration configuration, DataManager dataManager,
         ClientState clientState)
@@ -39,6 +40,10 @@ internal class InfluxStatisticsClient : IDisposable
             .ToDictionary(x => (byte)x.RowId, x => (byte)x.ExpArrayIndex);
         _classJobNames = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0)
             .ToDictionary(x => (byte)x.RowId, x => x.Abbreviation.ToString());
+        _expToJobs = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0)
+            .Where(x => x.JobIndex > 0)
+            .Where(x => x.Abbreviation.ToString() != "SMN")
+            .ToDictionary(x => x.ExpArrayIndex, x => x.Abbreviation.ToString());
     }
 
     public bool Enabled => _configuration.Server.Enabled;
@@ -108,6 +113,25 @@ internal class InfluxStatisticsClient : IDisposable
                                 })
                                 .Field("squadron_unlocked", localStats.SquadronUnlocked == true ? 1 : 0)
                                 .Timestamp(date, WritePrecision.S));
+
+                            if (localStats.ClassJobLevels.Count > 0)
+                            {
+                                foreach (var (expIndex, abbreviation) in _expToJobs)
+                                {
+                                    var level = localStats.ClassJobLevels[expIndex];
+                                    if (level > 0)
+                                    {
+                                        values.Add(PointData.Measurement("experience")
+                                            .Tag("id", character.CharacterId.ToString())
+                                            .Tag("player_name", character.Name)
+                                            .Tag("type", character.CharacterType.ToString())
+                                            .Tag("fc_id", character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
+                                            .Tag("job", abbreviation)
+                                            .Field("level", level)
+                                            .Timestamp(date, WritePrecision.S));
+                                    }
+                                }
+                            }
 
                             if (localStats.MsqCount != -1)
                             {
