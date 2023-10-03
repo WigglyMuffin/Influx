@@ -2,13 +2,10 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
-using Dalamud.Data;
-using Dalamud.Game.ClientState;
 using Dalamud.Game.Command;
-using Dalamud.Game.Gui;
 using Dalamud.Interface.Windowing;
-using Dalamud.Logging;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using ECommons;
 using Influx.AllaganTools;
 using Influx.Influx;
@@ -21,12 +18,11 @@ namespace Influx;
 [SuppressMessage("ReSharper", "UnusedType.Global")]
 public class InfluxPlugin : IDalamudPlugin
 {
-    public string Name => "Influx";
-
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly Configuration _configuration;
-    private readonly ClientState _clientState;
-    private readonly CommandManager _commandManager;
+    private readonly IClientState _clientState;
+    private readonly ICommandManager _commandManager;
+    private readonly IPluginLog _pluginLog;
     private readonly AllaganToolsIpc _allaganToolsIpc;
     private readonly SubmarineTrackerIpc _submarineTrackerIpc;
     private readonly LocalStatsCalculator _localStatsCalculator;
@@ -36,8 +32,8 @@ public class InfluxPlugin : IDalamudPlugin
     private readonly ConfigurationWindow _configurationWindow;
     private readonly Timer _timer;
 
-    public InfluxPlugin(DalamudPluginInterface pluginInterface, ClientState clientState,
-        CommandManager commandManager, ChatGui chatGui, DataManager dataManager)
+    public InfluxPlugin(DalamudPluginInterface pluginInterface, IClientState clientState, IPluginLog pluginLog,
+        ICommandManager commandManager, IChatGui chatGui, IDataManager dataManager)
     {
         ECommonsMain.Init(pluginInterface, this, Module.DalamudReflector);
 
@@ -45,9 +41,10 @@ public class InfluxPlugin : IDalamudPlugin
         _configuration = LoadConfig();
         _clientState = clientState;
         _commandManager = commandManager;
-        _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, _configuration);
-        _submarineTrackerIpc = new SubmarineTrackerIpc(chatGui);
-        _localStatsCalculator = new LocalStatsCalculator(pluginInterface, clientState, chatGui, dataManager);
+        _pluginLog = pluginLog;
+        _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, _pluginLog);
+        _submarineTrackerIpc = new SubmarineTrackerIpc();
+        _localStatsCalculator = new LocalStatsCalculator(pluginInterface, clientState, pluginLog, dataManager);
         _influxStatisticsClient = new InfluxStatisticsClient(chatGui, _configuration, dataManager, clientState);
 
         _windowSystem = new WindowSystem(typeof(InfluxPlugin).FullName);
@@ -74,8 +71,13 @@ public class InfluxPlugin : IDalamudPlugin
 
     private void ProcessCommand(string command, string arguments)
     {
-        UpdateStatistics();
-        _statisticsWindow.IsOpen = true;
+        if (arguments == "c" || arguments == "config")
+            _configurationWindow.Toggle();
+        else
+        {
+            UpdateStatistics();
+            _statisticsWindow.IsOpen = true;
+        }
     }
 
     private void UpdateStatistics()
@@ -114,7 +116,7 @@ public class InfluxPlugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            PluginLog.LogError(e, "failed to update statistics");
+            _pluginLog.Error(e, "failed to update statistics");
         }
     }
 

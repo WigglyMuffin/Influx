@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Dalamud.Game.Gui;
-using Dalamud.Logging;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Ipc.Exceptions;
+using Dalamud.Plugin.Services;
 using ECommons.Reflection;
 using ECommons.Schedulers;
 
@@ -13,23 +12,21 @@ namespace Influx.AllaganTools;
 
 internal sealed class AllaganToolsIpc : IDisposable
 {
-    private readonly DalamudPluginInterface _pluginInterface;
-    private readonly ChatGui _chatGui;
-    private readonly Configuration _configuration;
+    private readonly IChatGui _chatGui;
+    private readonly IPluginLog _pluginLog;
     private readonly ICallGateSubscriber<bool, bool>? _initalized;
     private readonly ICallGateSubscriber<bool>? _isInitialized;
 
     public ICharacterMonitor Characters { get; private set; } = new UnavailableCharacterMonitor();
     public IInventoryMonitor Inventories { get; private set; } = new UnavailableInventoryMonitor();
 
-    public AllaganToolsIpc(DalamudPluginInterface pluginInterface, ChatGui chatGui, Configuration configuration)
+    public AllaganToolsIpc(DalamudPluginInterface pluginInterface, IChatGui chatGui, IPluginLog pluginLog)
     {
-        _pluginInterface = pluginInterface;
         _chatGui = chatGui;
-        _configuration = configuration;
+        _pluginLog = pluginLog;
 
-        _initalized = _pluginInterface.GetIpcSubscriber<bool, bool>("AllaganTools.Initialized");
-        _isInitialized = _pluginInterface.GetIpcSubscriber<bool>("AllaganTools.IsInitialized");
+        _initalized = pluginInterface.GetIpcSubscriber<bool, bool>("AllaganTools.Initialized");
+        _isInitialized = pluginInterface.GetIpcSubscriber<bool>("AllaganTools.IsInitialized");
         _initalized.Subscribe(ConfigureIpc);
 
         try
@@ -40,13 +37,13 @@ internal sealed class AllaganToolsIpc : IDisposable
         }
         catch (IpcNotReadyError e)
         {
-            PluginLog.Error(e, "Not initializing ATools yet, ipc not ready");
+            _pluginLog.Error(e, "Not initializing ATools yet, ipc not ready");
         }
     }
 
     private void ConfigureIpc(bool initialized)
     {
-        PluginLog.Information("Configuring Allagan tools IPC");
+        _pluginLog.Information("Configuring Allagan tools IPC");
         _ = new TickScheduler(() =>
         {
             try
@@ -61,12 +58,12 @@ internal sealed class AllaganToolsIpc : IDisposable
                 }
                 else
                 {
-                    PluginLog.Warning("Reflection was unsuccessful");
+                    _pluginLog.Warning("Reflection was unsuccessful");
                 }
             }
             catch (Exception e)
             {
-                PluginLog.Error(e, "Could not initialize IPC");
+                _pluginLog.Error(e, "Could not initialize IPC");
                 _chatGui.PrintError(e.ToString());
             }
         }, 100);
@@ -74,7 +71,7 @@ internal sealed class AllaganToolsIpc : IDisposable
 
     public Dictionary<Character, Currencies> CountCurrencies()
     {
-        PluginLog.Debug($"{Characters.GetType()}, {Inventories.GetType()}");
+        _pluginLog.Debug($"{Characters.GetType()}, {Inventories.GetType()}");
         var characters = Characters.All.ToDictionary(x => x.CharacterId, x => x);
         return Inventories.All
             .Where(x => characters.ContainsKey(x.Value.CharacterId))

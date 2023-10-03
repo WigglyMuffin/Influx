@@ -22,7 +22,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="DalamudPackager" Version="2.1.11"/>
+        <PackageReference Include="DalamudPackager" Version="2.1.12"/>
         <PackageReference Include="InfluxDB.Client" Version="4.13.0"/>
     </ItemGroup>
 
@@ -33,10 +33,6 @@
         </Reference>
         <Reference Include="ImGui.NET">
             <HintPath>$(DalamudLibPath)ImGui.NET.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="ImGuiScene">
-            <HintPath>$(DalamudLibPath)ImGuiScene.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="Lumina">

@@ -1,12 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using Dalamud.Data;
-using Dalamud.Game.ClientState;
-using Dalamud.Game.Gui;
-using Dalamud.Logging;
+using Dalamud.Plugin.Services;
 using Influx.AllaganTools;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
@@ -16,20 +12,18 @@ using GrandCompany = FFXIVClientStructs.FFXIV.Client.UI.Agent.GrandCompany;
 
 namespace Influx.Influx;
 
-internal class InfluxStatisticsClient : IDisposable
+internal sealed class InfluxStatisticsClient : IDisposable
 {
-    private const string MutexName = "Global\\c31c89b5-5efb-4c7e-bf87-21717a2814ef";
-
     private readonly InfluxDBClient _influxClient;
-    private readonly ChatGui _chatGui;
+    private readonly IChatGui _chatGui;
     private readonly Configuration _configuration;
-    private readonly ClientState _clientState;
+    private readonly IClientState _clientState;
     private readonly IReadOnlyDictionary<byte, byte> _classJobToArrayIndex;
     private readonly IReadOnlyDictionary<byte, string> _classJobNames;
     private readonly Dictionary<sbyte, string> _expToJobs;
 
-    public InfluxStatisticsClient(ChatGui chatGui, Configuration configuration, DataManager dataManager,
-        ClientState clientState)
+    public InfluxStatisticsClient(IChatGui chatGui, Configuration configuration, IDataManager dataManager,
+        IClientState clientState)
     {
         _influxClient = new InfluxDBClient(configuration.Server.Server, configuration.Server.Token);
         _chatGui = chatGui;
@@ -111,7 +105,7 @@ internal class InfluxStatisticsClient : IDisposable
                                     11 => 90_000,
                                     _ => 0,
                                 })
-                                .Field("squadron_unlocked", localStats.SquadronUnlocked == true ? 1 : 0)
+                                .Field("squadron_unlocked", localStats.SquadronUnlocked ? 1 : 0)
                                 .Timestamp(date, WritePrecision.S));
 
                             if (localStats.ClassJobLevels.Count > 0)

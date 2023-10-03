@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Dalamud.Game.Gui;
 using ECommons.Reflection;
 using Influx.AllaganTools;
 
@@ -9,13 +8,6 @@ namespace Influx.SubmarineTracker;
 
 internal sealed class SubmarineTrackerIpc
 {
-    private readonly ChatGui _chatGui;
-
-    public SubmarineTrackerIpc(ChatGui chatGui)
-    {
-        _chatGui = chatGui;
-    }
-
     public Dictionary<Character, List<SubmarineStats>> GetSubmarineStats(List<Character> characters)
     {
         if (DalamudReflector.TryGetDalamudPlugin("Submarine Tracker", out var it, false, true))

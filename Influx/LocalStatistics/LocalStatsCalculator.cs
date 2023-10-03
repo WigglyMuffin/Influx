@@ -3,12 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Dalamud.Data;
-using Dalamud.Game.ClientState;
-using Dalamud.Game.Gui;
-using Dalamud.Logging;
 using Dalamud.Plugin;
-using ECommons.Schedulers;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using Lumina.Excel.GeneratedSheets;
@@ -17,7 +13,7 @@ using GrandCompany = FFXIVClientStructs.FFXIV.Client.UI.Agent.GrandCompany;
 
 namespace Influx.LocalStatistics;
 
-public class LocalStatsCalculator : IDisposable
+internal sealed class LocalStatsCalculator : IDisposable
 {
     private const uint ComingToGridania = 65575;
     private const uint ComingToLimsa = 65643;
@@ -30,8 +26,8 @@ public class LocalStatsCalculator : IDisposable
     private const uint JointQuest = 65781;
 
     private readonly DalamudPluginInterface _pluginInterface;
-    private readonly ClientState _clientState;
-    private readonly ChatGui _chatGui;
+    private readonly IClientState _clientState;
+    private readonly IPluginLog _pluginLog;
     private readonly Dictionary<ulong, LocalStats> _cache = new();
 
     private IReadOnlyList<QuestInfo>? _gridaniaStart;
@@ -42,13 +38,13 @@ public class LocalStatsCalculator : IDisposable
 
     public LocalStatsCalculator(
         DalamudPluginInterface pluginInterface,
-        ClientState clientState,
-        ChatGui chatGui,
-        DataManager dataManager)
+        IClientState clientState,
+        IPluginLog pluginLog,
+        IDataManager dataManager)
     {
         _pluginInterface = pluginInterface;
         _clientState = clientState;
-        _chatGui = chatGui;
+        _pluginLog = pluginLog;
 
         _clientState.Login += UpdateStatistics;
         _clientState.Logout += UpdateStatistics;
@@ -77,10 +73,9 @@ public class LocalStatsCalculator : IDisposable
             sortedQuests.Add(msq.First(x => x.RowId == JointQuest));
             msq.Remove(sortedQuests[0]);
 
-            QuestInfo? qq = msq.FirstOrDefault();
-            while ((qq = msq.FirstOrDefault(quest => quest.PreviousQuestIds.Count == 0 ||
-                                                     quest.PreviousQuestIds.All(
-                                                         x => sortedQuests.Any(y => x == y.RowId)))) != null)
+            while (msq.FirstOrDefault(quest => quest.PreviousQuestIds.Count == 0 ||
+                                               quest.PreviousQuestIds.All(x => sortedQuests.Any(y => x == y.RowId))) is
+                   { } qq)
             {
                 sortedQuests.Add(qq);
                 msq.Remove(qq);
@@ -101,7 +96,7 @@ public class LocalStatsCalculator : IDisposable
             }
             catch (Exception e)
             {
-                PluginLog.Warning(e, $"Could not parse file {file.FullName}");
+                _pluginLog.Warning(e, $"Could not parse file {file.FullName}");
             }
         }
 
@@ -149,16 +144,14 @@ public class LocalStatsCalculator : IDisposable
         _clientState.TerritoryChanged -= UpdateStatistics;
     }
 
-    private void UpdateStatistics(object? sender, EventArgs e) => UpdateStatistics();
-
-    private void UpdateStatistics(object? sender, ushort territoryType) => UpdateStatistics();
+    private void UpdateStatistics(ushort territoryType) => UpdateStatistics();
 
     private unsafe void UpdateStatistics()
     {
         var localContentId = _clientState.LocalContentId;
         if (localContentId == 0)
         {
-            PluginLog.Warning("No local character id");
+            _pluginLog.Warning("No local character id");
             return;
         }
 
@@ -196,7 +189,7 @@ public class LocalStatsCalculator : IDisposable
                 }
                 else
                 {
-                    PluginLog.Information($"XX → {playerState->StartTown}");
+                    _pluginLog.Information($"XX → {playerState->StartTown}");
                     IReadOnlyList<QuestInfo> cityQuests = playerState->StartTown switch
                     {
                         1 => _limsaStart!,
@@ -217,7 +210,7 @@ public class LocalStatsCalculator : IDisposable
                 localStats.MsqGenre = 0;
             }
 
-            PluginLog.Information($"ls → {localStats.MsqCount}, {localStats.MsqName}");
+            _pluginLog.Information($"ls → {localStats.MsqCount}, {localStats.MsqName}");
 
             if (_cache.TryGetValue(localContentId, out var existingStats))
             {
@@ -239,7 +232,7 @@ public class LocalStatsCalculator : IDisposable
         }
         catch (Exception e)
         {
-            PluginLog.Error(e, "Failed to update local stats");
+            _pluginLog.Error(e, "Failed to update local stats");
         }
     }
 
