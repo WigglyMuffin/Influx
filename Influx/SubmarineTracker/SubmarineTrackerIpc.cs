@@ -39,6 +39,11 @@ internal sealed class SubmarineTrackerIpc
                         Id = x.Subs.IndexOf(y),
                         Name = y.Name,
                         Level = y.Level,
+                        Hull = y.Build.HullIdentifier,
+                        Stern = y.Build.SternIdentifier,
+                        Bow = y.Build.BowIdentifier,
+                        Bridge = y.Build.BridgeIdentifier,
+                        Build = y.Build.FullIdentifier,
                     }).ToList());
         }
         else

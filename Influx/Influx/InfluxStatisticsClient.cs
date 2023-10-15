@@ -204,6 +204,11 @@ internal sealed class InfluxStatisticsClient : IDisposable
                                 .Tag("fc_name", fc.Name)
                                 .Tag("sub_id", $"{fc.CharacterId}_{sub.Id}")
                                 .Tag("sub_name", sub.Name)
+                                .Tag("part_hull", sub.Hull)
+                                .Tag("part_stern", sub.Stern)
+                                .Tag("part_bow", sub.Bow)
+                                .Tag("part_bridge", sub.Bridge)
+                                .Tag("build", sub.Build)
                                 .Field("level", sub.Level)
                                 .Timestamp(date, WritePrecision.S));
                         }
@@ -219,7 +224,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
             }
             catch (Exception e)
             {
-                _chatGui.PrintError(e.ToString());
+                _chatGui.PrintError(e.Message);
             }
         });
     }

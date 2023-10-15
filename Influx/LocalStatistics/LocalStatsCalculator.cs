@@ -127,6 +127,7 @@ internal sealed class LocalStatsCalculator : IDisposable
                     RowId = startingQuestId,
                     Name = "Coming to ...",
                     PreviousQuestIds = new(),
+                    Genre = quest.Genre,
                 };
             }
 

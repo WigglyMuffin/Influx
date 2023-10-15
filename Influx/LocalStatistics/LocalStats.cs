@@ -12,6 +12,6 @@ public record LocalStats
     public List<short> ClassJobLevels { get; set; } = new();
     public byte StartingTown { get; init; }
     public int MsqCount { get; set; } = -1;
-    public string MsqName { get; set; }
+    public string? MsqName { get; set; }
     public uint MsqGenre { get; set; }
 }

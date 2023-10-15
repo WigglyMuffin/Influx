@@ -4,8 +4,8 @@ namespace Influx.LocalStatistics;
 
 public class QuestInfo
 {
-    public uint RowId { get; set; }
-    public string Name { get; set; }
-    public List<uint> PreviousQuestIds { get; set; }
-    public uint Genre { get; set; }
+    public required uint RowId { get; init; }
+    public required string Name { get; init; }
+    public required List<uint> PreviousQuestIds { get; init; }
+    public required uint Genre { get; init; }
 }

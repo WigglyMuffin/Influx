@@ -2,15 +2,14 @@
 
 public sealed class Submarine
 {
-    private readonly object _delegate;
-
     public Submarine(object @delegate)
     {
-        _delegate = @delegate;
-        Name = (string)_delegate.GetType().GetProperty("Name")!.GetValue(_delegate)!;
-        Level = (ushort)_delegate.GetType().GetProperty("Rank")!.GetValue(_delegate)!;
+        Name = (string)@delegate.GetType().GetProperty("Name")!.GetValue(@delegate)!;
+        Level = (ushort)@delegate.GetType().GetProperty("Rank")!.GetValue(@delegate)!;
+        Build = new Build(@delegate.GetType().GetProperty("Build")!.GetValue(@delegate)!);
     }
 
-    public string Name { get; set; }
+    public string Name { get; }
     public ushort Level { get; }
+    public Build Build { get; }
 }
