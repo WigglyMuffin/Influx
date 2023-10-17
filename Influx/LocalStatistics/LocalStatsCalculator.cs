@@ -167,13 +167,7 @@ internal sealed class LocalStatsCalculator : IDisposable
                 ContentId = localContentId,
                 GrandCompany = playerState->GrandCompany,
                 GcRank = playerState->GetGrandCompanyRank(),
-                SquadronUnlocked = (GrandCompany)playerState->GrandCompany switch
-                {
-                    GrandCompany.Maelstrom => QuestManager.IsQuestComplete(67926),
-                    GrandCompany.TwinAdder => QuestManager.IsQuestComplete(67925),
-                    GrandCompany.ImmortalFlames => QuestManager.IsQuestComplete(67927),
-                    _ => false
-                },
+                SquadronUnlocked = playerState->GetGrandCompanyRank() >= 9 && (QuestManager.IsQuestComplete(67925) || QuestManager.IsQuestComplete(67926) || QuestManager.IsQuestComplete(67927)),
                 MaxLevel = playerState->MaxLevel,
                 ClassJobLevels = ExtractClassJobLevels(playerState),
                 StartingTown = playerState->StartTown,
