@@ -1,16 +1,23 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using ECommons.Reflection;
 using Influx.AllaganTools;
+using LLib;
 
 namespace Influx.SubmarineTracker;
 
 internal sealed class SubmarineTrackerIpc
 {
+    private readonly DalamudReflector _dalamudReflector;
+
+    public SubmarineTrackerIpc(DalamudReflector dalamudReflector)
+    {
+        _dalamudReflector = dalamudReflector;
+    }
+
     public Dictionary<Character, List<SubmarineStats>> GetSubmarineStats(List<Character> characters)
     {
-        if (DalamudReflector.TryGetDalamudPlugin("Submarine Tracker", out var it, false, true))
+        if (_dalamudReflector.TryGetDalamudPlugin("Submarine Tracker", out var it, false, true))
         {
             var submarineData = it.GetType().Assembly.GetType("SubmarineTracker.Data.Submarines");
             var knownSubmarineData = submarineData!.GetField("KnownSubmarines")!;

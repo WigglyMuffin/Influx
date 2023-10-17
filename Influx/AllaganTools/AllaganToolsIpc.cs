@@ -5,14 +5,15 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Ipc.Exceptions;
 using Dalamud.Plugin.Services;
-using ECommons.Reflection;
-using ECommons.Schedulers;
+using LLib;
 
 namespace Influx.AllaganTools;
 
 internal sealed class AllaganToolsIpc : IDisposable
 {
     private readonly IChatGui _chatGui;
+    private readonly DalamudReflector _dalamudReflector;
+    private readonly IFramework _framework;
     private readonly IPluginLog _pluginLog;
     private readonly ICallGateSubscriber<bool, bool>? _initalized;
     private readonly ICallGateSubscriber<bool>? _isInitialized;
@@ -20,9 +21,11 @@ internal sealed class AllaganToolsIpc : IDisposable
     public ICharacterMonitor Characters { get; private set; } = new UnavailableCharacterMonitor();
     public IInventoryMonitor Inventories { get; private set; } = new UnavailableInventoryMonitor();
 
-    public AllaganToolsIpc(DalamudPluginInterface pluginInterface, IChatGui chatGui, IPluginLog pluginLog)
+    public AllaganToolsIpc(DalamudPluginInterface pluginInterface, IChatGui chatGui, DalamudReflector dalamudReflector, IFramework framework, IPluginLog pluginLog)
     {
         _chatGui = chatGui;
+        _dalamudReflector = dalamudReflector;
+        _framework = framework;
         _pluginLog = pluginLog;
 
         _initalized = pluginInterface.GetIpcSubscriber<bool, bool>("AllaganTools.Initialized");
@@ -44,11 +47,11 @@ internal sealed class AllaganToolsIpc : IDisposable
     private void ConfigureIpc(bool initialized)
     {
         _pluginLog.Information("Configuring Allagan tools IPC");
-        _ = new TickScheduler(() =>
+        _framework.RunOnTick(() =>
         {
             try
             {
-                if (DalamudReflector.TryGetDalamudPlugin("Allagan Tools", out var it, false, true))
+                if (_dalamudReflector.TryGetDalamudPlugin("Allagan Tools", out var it, false, true))
                 {
                     var pluginService = it.GetType().Assembly.GetType("InventoryTools.PluginService")!;
 
@@ -66,7 +69,7 @@ internal sealed class AllaganToolsIpc : IDisposable
                 _pluginLog.Error(e, "Could not initialize IPC");
                 _chatGui.PrintError(e.ToString());
             }
-        }, 100);
+        }, TimeSpan.FromMilliseconds(100));
     }
 
     public Dictionary<Character, Currencies> CountCurrencies()

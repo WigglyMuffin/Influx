@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dalamud.Plugin.Services;
 using Influx.AllaganTools;
+using Influx.LocalStatistics;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Writes;
@@ -63,18 +64,20 @@ internal sealed class InfluxStatisticsClient : IDisposable
                 {
                     if (character.CharacterType == CharacterType.Character)
                     {
+                        update.LocalStats.TryGetValue(character, out LocalStats? localStats);
+
                         values.Add(PointData.Measurement("currency")
                             .Tag("id", character.CharacterId.ToString())
                             .Tag("player_name", character.Name)
                             .Tag("type", character.CharacterType.ToString())
                             .Tag("fc_id", character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
-                            .Field("gil", currencies.Gil)
+                            .Field("gil", localStats?.Gil ?? currencies.Gil)
                             .Field("ventures", currencies.Ventures)
                             .Field("ceruleum_tanks", currencies.CeruleumTanks)
                             .Field("repair_kits", currencies.RepairKits)
                             .Timestamp(date, WritePrecision.S));
 
-                        if (update.LocalStats.TryGetValue(character, out var localStats))
+                        if (localStats != null)
                         {
                             values.Add(PointData.Measurement("grandcompany")
                                 .Tag("id", character.CharacterId.ToString())

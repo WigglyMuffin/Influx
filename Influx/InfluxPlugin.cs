@@ -6,12 +6,12 @@ using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using ECommons;
 using Influx.AllaganTools;
 using Influx.Influx;
 using Influx.LocalStatistics;
 using Influx.SubmarineTracker;
 using Influx.Windows;
+using LLib;
 
 namespace Influx;
 
@@ -33,18 +33,18 @@ public class InfluxPlugin : IDalamudPlugin
     private readonly Timer _timer;
 
     public InfluxPlugin(DalamudPluginInterface pluginInterface, IClientState clientState, IPluginLog pluginLog,
-        ICommandManager commandManager, IChatGui chatGui, IDataManager dataManager)
+        ICommandManager commandManager, IChatGui chatGui, IDataManager dataManager, IFramework framework,
+        IAddonLifecycle addonLifecycle)
     {
-        ECommonsMain.Init(pluginInterface, this, Module.DalamudReflector);
-
         _pluginInterface = pluginInterface;
         _configuration = LoadConfig();
         _clientState = clientState;
         _commandManager = commandManager;
         _pluginLog = pluginLog;
-        _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, _pluginLog);
-        _submarineTrackerIpc = new SubmarineTrackerIpc();
-        _localStatsCalculator = new LocalStatsCalculator(pluginInterface, clientState, pluginLog, dataManager);
+        DalamudReflector dalamudReflector = new DalamudReflector(pluginInterface, framework, pluginLog);
+        _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, dalamudReflector, framework, _pluginLog);
+        _submarineTrackerIpc = new SubmarineTrackerIpc(dalamudReflector);
+        _localStatsCalculator = new LocalStatsCalculator(pluginInterface, clientState, addonLifecycle, pluginLog, dataManager);
         _influxStatisticsClient = new InfluxStatisticsClient(chatGui, _configuration, dataManager, clientState);
 
         _windowSystem = new WindowSystem(typeof(InfluxPlugin).FullName);
@@ -130,7 +130,5 @@ public class InfluxPlugin : IDalamudPlugin
         _influxStatisticsClient.Dispose();
         _localStatsCalculator.Dispose();
         _allaganToolsIpc.Dispose();
-
-        ECommonsMain.Dispose();
     }
 }

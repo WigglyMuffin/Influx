@@ -14,4 +14,5 @@ public record LocalStats
     public int MsqCount { get; set; } = -1;
     public string? MsqName { get; set; }
     public uint MsqGenre { get; set; }
+    public int? Gil { get; set; }
 }

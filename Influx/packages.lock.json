@@ -191,7 +191,7 @@
           "System.Drawing.Common": "6.0.0"
         }
       },
-      "ecommons": {
+      "llib": {
         "type": "Project"
       }
     }

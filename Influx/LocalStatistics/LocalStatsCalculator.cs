@@ -3,13 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Dalamud.Game.Addon.Lifecycle;
+using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
+using Dalamud.Memory;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using Lumina.Excel.GeneratedSheets;
 using Newtonsoft.Json;
-using GrandCompany = FFXIVClientStructs.FFXIV.Client.UI.Agent.GrandCompany;
 
 namespace Influx.LocalStatistics;
 
@@ -27,7 +30,9 @@ internal sealed class LocalStatsCalculator : IDisposable
 
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
+    private readonly IAddonLifecycle _addonLifecycle;
     private readonly IPluginLog _pluginLog;
+    private readonly GameStrings _gameStrings;
     private readonly Dictionary<ulong, LocalStats> _cache = new();
 
     private IReadOnlyList<QuestInfo>? _gridaniaStart;
@@ -39,16 +44,19 @@ internal sealed class LocalStatsCalculator : IDisposable
     public LocalStatsCalculator(
         DalamudPluginInterface pluginInterface,
         IClientState clientState,
+        IAddonLifecycle addonLifecycle,
         IPluginLog pluginLog,
         IDataManager dataManager)
     {
         _pluginInterface = pluginInterface;
         _clientState = clientState;
+        _addonLifecycle = addonLifecycle;
         _pluginLog = pluginLog;
+        _gameStrings = new GameStrings(dataManager, pluginLog);
 
         _clientState.Login += UpdateStatistics;
-        _clientState.Logout += UpdateStatistics;
         _clientState.TerritoryChanged += UpdateStatistics;
+        _addonLifecycle.RegisterListener(AddonEvent.PreFinalize, "SelectYesno", UpdateStatistics);
 
         Task.Run(() =>
         {
@@ -140,12 +148,20 @@ internal sealed class LocalStatsCalculator : IDisposable
 
     public void Dispose()
     {
+        _addonLifecycle.UnregisterListener(AddonEvent.PreFinalize, "SelectYesno", UpdateStatistics);
         _clientState.Login -= UpdateStatistics;
-        _clientState.Logout -= UpdateStatistics;
         _clientState.TerritoryChanged -= UpdateStatistics;
     }
 
     private void UpdateStatistics(ushort territoryType) => UpdateStatistics();
+
+    private unsafe void UpdateStatistics(AddonEvent type, AddonArgs args)
+    {
+        AddonSelectYesno* addonSelectYesNo = (AddonSelectYesno*)args.Addon;
+        string text = MemoryHelper.ReadSeString(&addonSelectYesNo->PromptText->NodeText).ToString().Replace("\n", "").Replace("\r", "");
+        if (text == _gameStrings.LogoutToTitleScreen || text == _gameStrings.LogoutAndExitGame)
+            UpdateStatistics();
+    }
 
     private unsafe void UpdateStatistics()
     {
@@ -156,6 +172,7 @@ internal sealed class LocalStatsCalculator : IDisposable
             return;
         }
 
+        _pluginLog.Information($"Updating character {_clientState.LocalContentId}");
         try
         {
             PlayerState* playerState = PlayerState.Instance();
@@ -171,6 +188,7 @@ internal sealed class LocalStatsCalculator : IDisposable
                 MaxLevel = playerState->MaxLevel,
                 ClassJobLevels = ExtractClassJobLevels(playerState),
                 StartingTown = playerState->StartTown,
+                Gil = InventoryManager.Instance()->GetInventoryItemCount(1),
             };
 
             if (_msqQuests != null)
@@ -205,7 +223,7 @@ internal sealed class LocalStatsCalculator : IDisposable
                 localStats.MsqGenre = 0;
             }
 
-            _pluginLog.Information($"ls → {localStats.MsqCount}, {localStats.MsqName}");
+            _pluginLog.Information($"Current MSQ Progress: {localStats.MsqCount}, {localStats.MsqName}");
 
             if (_cache.TryGetValue(localContentId, out var existingStats))
             {
