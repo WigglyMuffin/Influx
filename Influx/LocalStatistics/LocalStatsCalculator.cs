@@ -56,7 +56,8 @@ internal sealed class LocalStatsCalculator : IDisposable
 
         _clientState.Login += UpdateStatistics;
         _clientState.TerritoryChanged += UpdateStatistics;
-        _addonLifecycle.RegisterListener(AddonEvent.PreFinalize, "SelectYesno", UpdateStatistics);
+        _addonLifecycle.RegisterListener(AddonEvent.PostSetup, "SelectYesno", UpdateStatisticsLogout);
+        _addonLifecycle.RegisterListener(AddonEvent.PreSetup, "JournalAccept", UpdateStatistics);
 
         Task.Run(() =>
         {
@@ -64,6 +65,9 @@ internal sealed class LocalStatsCalculator : IDisposable
             foreach (var quest in dataManager.GetExcelSheet<Quest>()!.Where(x => x.JournalGenre.Row is >= 1 and <= 12))
             {
                 var previousQuests = quest.PreviousQuest?.Select(x => x.Row).Where(x => x != 0).ToList();
+                if (previousQuests != null && quest.Unknown12 != 0)
+                    previousQuests.Add(quest.Unknown12);
+
                 msq.Add(new QuestInfo
                 {
                     RowId = quest.RowId,
@@ -148,20 +152,23 @@ internal sealed class LocalStatsCalculator : IDisposable
 
     public void Dispose()
     {
-        _addonLifecycle.UnregisterListener(AddonEvent.PreFinalize, "SelectYesno", UpdateStatistics);
+        _addonLifecycle.UnregisterListener(AddonEvent.PreSetup, "JournalAccept", UpdateStatistics);
+        _addonLifecycle.UnregisterListener(AddonEvent.PostSetup, "SelectYesno", UpdateStatisticsLogout);
         _clientState.Login -= UpdateStatistics;
-        _clientState.TerritoryChanged -= UpdateStatistics;
     }
 
     private void UpdateStatistics(ushort territoryType) => UpdateStatistics();
 
-    private unsafe void UpdateStatistics(AddonEvent type, AddonArgs args)
+    private unsafe void UpdateStatisticsLogout(AddonEvent type, AddonArgs args)
     {
         AddonSelectYesno* addonSelectYesNo = (AddonSelectYesno*)args.Addon;
-        string text = MemoryHelper.ReadSeString(&addonSelectYesNo->PromptText->NodeText).ToString().Replace("\n", "").Replace("\r", "");
+        string? text = MemoryHelper.ReadSeString(&addonSelectYesNo->PromptText->NodeText)?.ToString();
+        text = text?.Replace("\n", "").Replace("\r", "");
         if (text == _gameStrings.LogoutToTitleScreen || text == _gameStrings.LogoutAndExitGame)
             UpdateStatistics();
     }
+
+    private void UpdateStatistics(AddonEvent type, AddonArgs args) => UpdateStatistics();
 
     private unsafe void UpdateStatistics()
     {
