@@ -209,7 +209,7 @@ internal sealed class LocalStatsCalculator : IDisposable
                 }
                 else
                 {
-                    _pluginLog.Information($"XX → {playerState->StartTown}");
+                    //_pluginLog.Information($"XX → {playerState->StartTown}");
                     IReadOnlyList<QuestInfo> cityQuests = playerState->StartTown switch
                     {
                         1 => _limsaStart!,
@@ -230,7 +230,7 @@ internal sealed class LocalStatsCalculator : IDisposable
                 localStats.MsqGenre = 0;
             }
 
-            _pluginLog.Information($"Current MSQ Progress: {localStats.MsqCount}, {localStats.MsqName}");
+            _pluginLog.Verbose($"Current MSQ Progress: {localStats.MsqCount}, {localStats.MsqName}");
 
             if (_cache.TryGetValue(localContentId, out var existingStats))
             {

@@ -191,6 +191,15 @@
           "System.Drawing.Common": "6.0.0"
         }
       },
+      "autoretainerapi": {
+        "type": "Project",
+        "dependencies": {
+          "ECommons": "[2.1.0, )"
+        }
+      },
+      "ecommons": {
+        "type": "Project"
+      },
       "llib": {
         "type": "Project"
       }

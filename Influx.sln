@@ -4,6 +4,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Influx", "Influx\Influx.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LLib", "LLib\LLib.csproj", "{C11552A8-9C8C-4084-A669-AAFE55E24DCC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommons", "ECommons\ECommons\ECommons.csproj", "{FC6E184C-5B01-4298-87DF-CC10C4955936}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoRetainerAPI", "AutoRetainerAPI\AutoRetainerAPI\AutoRetainerAPI.csproj", "{7352C470-D652-4909-AD90-8A5171A86698}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +22,13 @@ Global
 		{C11552A8-9C8C-4084-A669-AAFE55E24DCC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C11552A8-9C8C-4084-A669-AAFE55E24DCC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C11552A8-9C8C-4084-A669-AAFE55E24DCC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC6E184C-5B01-4298-87DF-CC10C4955936}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{FC6E184C-5B01-4298-87DF-CC10C4955936}.Debug|Any CPU.Build.0 = Debug|x64
+		{FC6E184C-5B01-4298-87DF-CC10C4955936}.Release|Any CPU.ActiveCfg = Release|x64
+		{FC6E184C-5B01-4298-87DF-CC10C4955936}.Release|Any CPU.Build.0 = Release|x64
+		{7352C470-D652-4909-AD90-8A5171A86698}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{7352C470-D652-4909-AD90-8A5171A86698}.Debug|Any CPU.Build.0 = Debug|x64
+		{7352C470-D652-4909-AD90-8A5171A86698}.Release|Any CPU.ActiveCfg = Release|x64
+		{7352C470-D652-4909-AD90-8A5171A86698}.Release|Any CPU.Build.0 = Release|x64
 	EndGlobalSection
 EndGlobal
