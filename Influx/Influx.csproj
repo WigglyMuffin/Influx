@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net7.0-windows</TargetFramework>
-        <Version>1.0</Version>
+        <Version>0.1</Version>
         <LangVersion>11.0</LangVersion>
         <Nullable>enable</Nullable>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -9,6 +9,7 @@
         <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
         <OutputPath>dist</OutputPath>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <PathMap Condition="$(SolutionDir) != ''">$(SolutionDir)=X:\</PathMap>
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
         <DebugType>portable</DebugType>
     </PropertyGroup>

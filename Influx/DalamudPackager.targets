@@ -15,6 +15,7 @@
                 OutputPath="$(OutputPath)"
                 AssemblyName="$(AssemblyName)"
                 MakeZip="true"
-                VersionComponents="2"/>
+                VersionComponents="2"
+                Exclude="AutoRetainerAPI.pdb;ECommons.xml;ECommons.pdb;Influx.deps.json;LLib.pdb"/>
     </Target>
 </Project>
