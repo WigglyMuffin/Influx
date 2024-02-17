@@ -3,5 +3,6 @@
   "Author": "Liza Carvelli",
   "Punchline": "Sync game stats to InfluxDB",
   "Description": "Sync game stats to InfluxDB",
-  "RepoUrl": "https://git.carvel.li/liza/Influx"
+  "RepoUrl": "https://git.carvel.li/liza/Influx",
+  "IconUrl": "https://plugins.carvel.li/icons/Influx.png"
 }
