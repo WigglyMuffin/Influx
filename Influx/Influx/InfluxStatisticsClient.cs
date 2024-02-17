@@ -186,12 +186,14 @@ internal sealed class InfluxStatisticsClient : IDisposable
                     else if (character.CharacterType == CharacterType.FreeCompanyChest &&
                              validFcIds.Contains(character.CharacterId))
                     {
+                        update.FcStats.TryGetValue(character.CharacterId, out FcStats? fcStats);
+
                         values.Add(PointData.Measurement("currency")
                             .Tag("id", character.CharacterId.ToString())
                             .Tag("fc_name", character.Name)
                             .Tag("type", character.CharacterType.ToString())
                             .Field("gil", currencies.Gil)
-                            .Field("fccredit", currencies.FcCredits)
+                            .Field("fccredit", fcStats?.FcCredits ?? 0)
                             .Field("ceruleum_tanks", currencies.CeruleumTanks)
                             .Field("repair_kits", currencies.RepairKits)
                             .Timestamp(date, WritePrecision.S));

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -191,7 +192,9 @@ internal sealed class LocalStatsCalculator : IDisposable
                 ContentId = localContentId,
                 GrandCompany = playerState->GrandCompany,
                 GcRank = playerState->GetGrandCompanyRank(),
-                SquadronUnlocked = playerState->GetGrandCompanyRank() >= 9 && (QuestManager.IsQuestComplete(67925) || QuestManager.IsQuestComplete(67926) || QuestManager.IsQuestComplete(67927)),
+                SquadronUnlocked = playerState->GetGrandCompanyRank() >= 9 && (QuestManager.IsQuestComplete(67925) ||
+                                                                               QuestManager.IsQuestComplete(67926) ||
+                                                                               QuestManager.IsQuestComplete(67927)),
                 MaxLevel = playerState->MaxLevel,
                 ClassJobLevels = ExtractClassJobLevels(playerState),
                 StartingTown = playerState->StartTown,

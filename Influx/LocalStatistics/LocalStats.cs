@@ -2,7 +2,7 @@
 
 namespace Influx.LocalStatistics;
 
-public record LocalStats
+public sealed record LocalStats
 {
     public ulong ContentId { get; init; }
     public byte GrandCompany { get; init; }
