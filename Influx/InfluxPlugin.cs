@@ -84,13 +84,13 @@ public class InfluxPlugin : IDalamudPlugin
 
     private void ProcessCommand(string command, string arguments)
     {
-        if (arguments == "c" || arguments == "config")
-            _configurationWindow.Toggle();
-        else
+        if (arguments == "gil")
         {
             UpdateStatistics();
             _statisticsWindow.IsOpen = true;
         }
+        else
+            _configurationWindow.Toggle();
     }
 
     private void UpdateStatistics()
