@@ -217,6 +217,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
                                 .Tag("part_bridge", sub.Bridge)
                                 .Tag("build", sub.Build)
                                 .Field("level", sub.Level)
+                                .Field("predicted_level", sub.PredictedLevel)
                                 .Timestamp(date, WritePrecision.S));
                         }
                     }
