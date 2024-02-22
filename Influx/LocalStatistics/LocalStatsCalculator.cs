@@ -199,6 +199,7 @@ internal sealed class LocalStatsCalculator : IDisposable
                 ClassJobLevels = ExtractClassJobLevels(playerState),
                 StartingTown = playerState->StartTown,
                 Gil = InventoryManager.Instance()->GetInventoryItemCount(1),
+                MGP = InventoryManager.Instance()->GetInventoryItemCount(29),
             };
 
             if (_msqQuests != null)

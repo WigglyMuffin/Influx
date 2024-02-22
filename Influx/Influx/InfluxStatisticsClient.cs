@@ -72,6 +72,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
                             .Tag("type", character.CharacterType.ToString())
                             .Tag("fc_id", character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
                             .Field("gil", localStats?.Gil ?? currencies.Gil)
+                            .Field("mgp", localStats?.MGP ?? 0)
                             .Field("ventures", currencies.Ventures)
                             .Field("ceruleum_tanks", currencies.CeruleumTanks)
                             .Field("repair_kits", currencies.RepairKits)
