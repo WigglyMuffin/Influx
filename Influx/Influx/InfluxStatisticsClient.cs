@@ -53,6 +53,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
 
         var validFcIds = currencyStats.Keys
             .Where(x => x.CharacterType == CharacterType.Character)
+            .Where(x => _configuration.IncludedCharacters.SingleOrDefault(config => config.LocalContentId == x.CharacterId)?.IncludeFreeCompany == true)
             .Select(x => x.FreeCompanyId)
             .ToList();
         Task.Run(async () =>

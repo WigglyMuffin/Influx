@@ -88,9 +88,21 @@ internal sealed class ConfigurationWindow : Window
                 $"Current Character: {_clientState.LocalPlayer?.Name} @ {worldName} ({_clientState.LocalContentId:X})");
 
             ImGui.Indent(30);
-            if (_configuration.IncludedCharacters.Any(x => x.LocalContentId == _clientState.LocalContentId))
+            Configuration.CharacterInfo? includedCharacter =
+                _configuration.IncludedCharacters.FirstOrDefault(x => x.LocalContentId == _clientState.LocalContentId);
+            if (includedCharacter != null)
             {
                 ImGui.TextColored(ImGuiColors.HealerGreen, "This character is currently included.");
+
+                bool includeFreeCompany = includedCharacter.IncludeFreeCompany;
+                if (ImGui.Checkbox("Include Free Company statistics", ref includeFreeCompany))
+                {
+                    includedCharacter.IncludeFreeCompany = includeFreeCompany;
+                    Save();
+                }
+
+                ImGui.Spacing();
+
                 if (ImGui.Button("Remove inclusion"))
                 {
                     _configuration.IncludedCharacters.RemoveAll(

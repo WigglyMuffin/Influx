@@ -15,9 +15,9 @@ public sealed class Configuration : IPluginConfiguration
     {
         public bool Enabled { get; set; }
         public string Server { get; set; } = "http://localhost:8086";
-        public string Token { get; set; } = "xxx";
-        public string Organization { get; set; } = "org";
-        public string Bucket { get; set; } = "bucket";
+        public string Token { get; set; } = "";
+        public string Organization { get; set; } = "";
+        public string Bucket { get; set; } = "";
     }
 
     public sealed class CharacterInfo
@@ -25,5 +25,6 @@ public sealed class Configuration : IPluginConfiguration
         public ulong LocalContentId { get; set; }
         public string? CachedPlayerName { get; set; }
         public string? CachedWorldName { get; set; }
+        public bool IncludeFreeCompany { get; set; } = true;
     }
 }
