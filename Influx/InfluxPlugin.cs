@@ -58,12 +58,13 @@ public class InfluxPlugin : IDalamudPlugin
         _submarineTrackerIpc = new SubmarineTrackerIpc(dalamudReflector);
         _localStatsCalculator = new LocalStatsCalculator(pluginInterface, clientState, addonLifecycle, pluginLog, dataManager);
         _fcStatsCalculator = new FcStatsCalculator(this, pluginInterface, clientState, addonLifecycle, gameGui, framework, pluginLog);
-        _influxStatisticsClient = new InfluxStatisticsClient(chatGui, _configuration, dataManager, clientState);
+        _influxStatisticsClient = new InfluxStatisticsClient(chatGui, _configuration, dataManager, clientState, _pluginLog);
 
         _windowSystem = new WindowSystem(typeof(InfluxPlugin).FullName);
         _statisticsWindow = new StatisticsWindow();
         _windowSystem.AddWindow(_statisticsWindow);
         _configurationWindow = new ConfigurationWindow(_pluginInterface, clientState, _configuration);
+        _configurationWindow.ConfigUpdated += (_, _) => _influxStatisticsClient.UpdateClient();
         _windowSystem.AddWindow(_configurationWindow);
 
         _commandManager.AddHandler("/influx", new CommandInfo(ProcessCommand));

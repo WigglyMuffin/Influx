@@ -15,21 +15,23 @@ namespace Influx.Influx;
 
 internal sealed class InfluxStatisticsClient : IDisposable
 {
-    private readonly InfluxDBClient _influxClient;
+    private InfluxDBClient? _influxClient;
     private readonly IChatGui _chatGui;
     private readonly Configuration _configuration;
     private readonly IClientState _clientState;
+    private readonly IPluginLog _pluginLog;
     private readonly IReadOnlyDictionary<byte, byte> _classJobToArrayIndex;
     private readonly IReadOnlyDictionary<byte, string> _classJobNames;
     private readonly Dictionary<sbyte, string> _expToJobs;
 
     public InfluxStatisticsClient(IChatGui chatGui, Configuration configuration, IDataManager dataManager,
-        IClientState clientState)
+        IClientState clientState, IPluginLog pluginLog)
     {
-        _influxClient = new InfluxDBClient(configuration.Server.Server, configuration.Server.Token);
         _chatGui = chatGui;
         _configuration = configuration;
         _clientState = clientState;
+        _pluginLog = pluginLog;
+        UpdateClient();
 
         _classJobToArrayIndex = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0)
             .ToDictionary(x => (byte)x.RowId, x => (byte)x.ExpArrayIndex);
@@ -41,7 +43,20 @@ internal sealed class InfluxStatisticsClient : IDisposable
             .ToDictionary(x => x.ExpArrayIndex, x => x.Abbreviation.ToString());
     }
 
-    public bool Enabled => _configuration.Server.Enabled;
+    public bool Enabled => _configuration.Server.Enabled &&
+                           !string.IsNullOrEmpty(_configuration.Server.Server) &&
+                           !string.IsNullOrEmpty(_configuration.Server.Token) &&
+                           !string.IsNullOrEmpty(_configuration.Server.Organization) &&
+                           !string.IsNullOrEmpty(_configuration.Server.Bucket);
+
+    public void UpdateClient()
+    {
+        _influxClient?.Dispose();
+        _influxClient = null;
+
+        if (Enabled)
+            _influxClient = new InfluxDBClient(_configuration.Server.Server, _configuration.Server.Token);
+    }
 
     public void OnStatisticsUpdate(StatisticsUpdate update)
     {
@@ -53,9 +68,13 @@ internal sealed class InfluxStatisticsClient : IDisposable
 
         var validFcIds = currencyStats.Keys
             .Where(x => x.CharacterType == CharacterType.Character)
-            .Where(x => _configuration.IncludedCharacters.SingleOrDefault(config => config.LocalContentId == x.CharacterId)?.IncludeFreeCompany == true)
+            .Where(x => _configuration.IncludedCharacters
+                .SingleOrDefault(config => config.LocalContentId == x.CharacterId)?.IncludeFreeCompany == true)
             .Select(x => x.FreeCompanyId)
             .ToList();
+        var client = _influxClient;
+        if (client == null)
+            return;
         Task.Run(async () =>
         {
             try
@@ -124,7 +143,8 @@ internal sealed class InfluxStatisticsClient : IDisposable
                                             .Tag("id", character.CharacterId.ToString())
                                             .Tag("player_name", character.Name)
                                             .Tag("type", character.CharacterType.ToString())
-                                            .Tag("fc_id", character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
+                                            .Tag("fc_id",
+                                                character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
                                             .Tag("job", abbreviation)
                                             .Field("level", level)
                                             .Timestamp(date, WritePrecision.S));
@@ -225,7 +245,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
                     }
                 }
 
-                var writeApi = _influxClient.GetWriteApiAsync();
+                var writeApi = client.GetWriteApiAsync();
                 await writeApi.WritePointsAsync(
                     values,
                     _configuration.Server.Bucket, _configuration.Server.Organization);
@@ -234,6 +254,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
             }
             catch (Exception e)
             {
+                _pluginLog.Error(e, "Unable to update statistics");
                 _chatGui.PrintError(e.Message);
             }
         });
@@ -241,6 +262,6 @@ internal sealed class InfluxStatisticsClient : IDisposable
 
     public void Dispose()
     {
-        _influxClient.Dispose();
+        _influxClient?.Dispose();
     }
 }

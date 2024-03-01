@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -23,6 +24,8 @@ internal sealed class ConfigurationWindow : Window
         _configuration = configuration;
     }
 
+    public event EventHandler? ConfigUpdated;
+
     public override void Draw()
     {
         using var tabBar = ImRaii.TabBar("InfluxConfigTabs");
@@ -43,35 +46,35 @@ internal sealed class ConfigurationWindow : Window
         if (ImGui.Checkbox("Enable Server Connection", ref enabled))
         {
             _configuration.Server.Enabled = enabled;
-            Save();
+            Save(true);
         }
 
         string server = _configuration.Server.Server;
         if (ImGui.InputText("InfluxDB URL", ref server, 128))
         {
             _configuration.Server.Server = server;
-            Save();
+            Save(true);
         }
 
         string token = _configuration.Server.Token;
         if (ImGui.InputText("Token", ref token, 128, ImGuiInputTextFlags.Password))
         {
             _configuration.Server.Token = token;
-            Save();
+            Save(true);
         }
 
         string organization = _configuration.Server.Organization;
         if (ImGui.InputText("Organization", ref organization, 128))
         {
             _configuration.Server.Organization = organization;
-            Save();
+            Save(true);
         }
 
         string bucket = _configuration.Server.Bucket;
         if (ImGui.InputText("Bucket", ref bucket, 128))
         {
             _configuration.Server.Bucket = bucket;
-            Save();
+            Save(true);
         }
     }
 
@@ -160,8 +163,11 @@ internal sealed class ConfigurationWindow : Window
         }
     }
 
-    private void Save()
+    private void Save(bool sendEvent = false)
     {
         _pluginInterface.SavePluginConfig(_configuration);
+
+        if (sendEvent)
+            ConfigUpdated?.Invoke(this, EventArgs.Empty);
     }
 }
