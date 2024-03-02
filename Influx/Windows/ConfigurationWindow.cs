@@ -155,7 +155,7 @@ internal sealed class ConfigurationWindow : Window
                 foreach (var characterInfo in world)
                 {
                     ImGui.Selectable(
-                        $"{characterInfo.CachedPlayerName} @ {characterInfo.CachedWorldName} ({characterInfo.LocalContentId:X})");
+                        $"{characterInfo.CachedPlayerName} @ {characterInfo.CachedWorldName} ({characterInfo.LocalContentId:X}{(!characterInfo.IncludeFreeCompany ? ", no FC" : "")})");
                 }
 
                 ImGui.Unindent(30);

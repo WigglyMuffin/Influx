@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using AutoRetainerAPI;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
@@ -13,6 +14,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Info;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Newtonsoft.Json;
 using Task = System.Threading.Tasks.Task;
+
 namespace Influx.LocalStatistics;
 
 public class FcStatsCalculator : IDisposable
@@ -22,6 +24,7 @@ public class FcStatsCalculator : IDisposable
     private readonly IAddonLifecycle _addonLifecycle;
     private readonly IGameGui _gameGui;
     private readonly IFramework _framework;
+    private readonly Configuration _configuration;
     private readonly IPluginLog _pluginLog;
     private readonly AutoRetainerApi _autoRetainerApi;
 
@@ -36,6 +39,7 @@ public class FcStatsCalculator : IDisposable
         IAddonLifecycle addonLifecycle,
         IGameGui gameGui,
         IFramework framework,
+        Configuration configuration,
         IPluginLog pluginLog)
     {
         _pluginInterface = pluginInterface;
@@ -43,13 +47,14 @@ public class FcStatsCalculator : IDisposable
         _addonLifecycle = addonLifecycle;
         _gameGui = gameGui;
         _framework = framework;
+        _configuration = configuration;
         _pluginLog = pluginLog;
 
         ECommonsMain.Init(_pluginInterface, plugin);
         _autoRetainerApi = new();
         _autoRetainerApi.OnCharacterPostprocessStep += CheckCharacterPostProcess;
         _autoRetainerApi.OnCharacterReadyToPostProcess += DoCharacterPostProcess;
-        _addonLifecycle.RegisterListener(AddonEvent.PostReceiveEvent ,"FreeCompany", CloseFcWindow);
+        _addonLifecycle.RegisterListener(AddonEvent.PostReceiveEvent, "FreeCompany", CloseFcWindow);
 
         foreach (var file in _pluginInterface.ConfigDirectory.GetFiles("f.*.json"))
         {
@@ -70,6 +75,12 @@ public class FcStatsCalculator : IDisposable
 
     private unsafe void CheckCharacterPostProcess()
     {
+        bool includeFc = _configuration.IncludedCharacters.Any(x =>
+            x.LocalContentId == _clientState.LocalContentId &&
+            x.IncludeFreeCompany);
+        if (!includeFc)
+            return;
+
         var infoProxy = Framework.Instance()->UIModule->GetInfoModule()->GetInfoProxyById(InfoProxyId.FreeCompany);
         if (infoProxy != null)
         {
@@ -89,10 +100,18 @@ public class FcStatsCalculator : IDisposable
     private void DoCharacterPostProcess()
     {
         closeFcWindow = true;
-        Chat.Instance.SendMessage("/freecompanycmd");
+
+        unsafe
+        {
+            AtkUnitBase* addon = (AtkUnitBase*)_gameGui.GetAddonByName("FreeCompany");
+            if (addon != null && addon->IsVisible)
+                CloseFcWindow(AddonEvent.PostReceiveEvent);
+            else
+                Chat.Instance.SendMessage("/freecompanycmd");
+        }
     }
 
-    private void CloseFcWindow(AddonEvent type, AddonArgs args)
+    private void CloseFcWindow(AddonEvent type, AddonArgs? args = null)
     {
         _framework.RunOnTick(() => UpdateOnTick(0), TimeSpan.FromMilliseconds(100));
     }
@@ -191,7 +210,7 @@ public class FcStatsCalculator : IDisposable
 
     public void Dispose()
     {
-        _addonLifecycle.UnregisterListener(AddonEvent.PostReceiveEvent ,"FreeCompany", CloseFcWindow);
+        _addonLifecycle.UnregisterListener(AddonEvent.PostReceiveEvent, "FreeCompany", CloseFcWindow);
         _autoRetainerApi.OnCharacterPostprocessStep -= CheckCharacterPostProcess;
         _autoRetainerApi.OnCharacterReadyToPostProcess -= DoCharacterPostProcess;
         _autoRetainerApi.Dispose();
