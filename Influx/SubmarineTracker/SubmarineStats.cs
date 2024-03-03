@@ -12,4 +12,5 @@ public sealed class SubmarineStats
     public required string Bow { get; init; }
     public required string Bridge { get; init; }
     public required string Build { get; init; }
+    public required EState State { get; init; }
 }

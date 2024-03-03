@@ -240,6 +240,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
                                 .Tag("build", sub.Build)
                                 .Field("level", sub.Level)
                                 .Field("predicted_level", sub.PredictedLevel)
+                                .Field("state", (int)sub.State)
                                 .Timestamp(date, WritePrecision.S));
                         }
                     }

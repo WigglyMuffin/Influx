@@ -52,6 +52,7 @@ internal sealed class SubmarineTrackerIpc
                         Bow = y.Build.BowIdentifier,
                         Bridge = y.Build.BridgeIdentifier,
                         Build = y.Build.FullIdentifier,
+                        State = y.State,
                     }).ToList());
         }
         else

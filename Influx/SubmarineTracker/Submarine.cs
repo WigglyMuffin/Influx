@@ -14,6 +14,13 @@ public sealed class Submarine
         {
             (uint predictedLevel, double _) = ((uint, double))@delegate.GetType().GetMethod("PredictExpGrowth")!.Invoke(@delegate, Array.Empty<object?>())!;
             PredictedLevel = (ushort)predictedLevel;
+
+            bool onVoyage = (bool)@delegate.GetType().GetMethod("IsOnVoyage")!.Invoke(@delegate, Array.Empty<object>())!;
+            bool returned = (bool)@delegate.GetType().GetMethod("IsDone")!.Invoke(@delegate, Array.Empty<object>())!;
+            if (onVoyage)
+                State = returned ? EState.Returned : EState.Voyage;
+            else
+                State = EState.NoVoyage;
         }
         catch (Exception)
         {
@@ -25,4 +32,5 @@ public sealed class Submarine
     public ushort Level { get; }
     public ushort PredictedLevel { get; }
     public Build Build { get; }
+    public EState State { get; }
 }
