@@ -86,11 +86,15 @@ internal sealed class InfluxStatisticsClient : IDisposable
                     {
                         update.LocalStats.TryGetValue(character, out LocalStats? localStats);
 
+                        bool includeFc = character.FreeCompanyId > 0 &&
+                                         _configuration.IncludedCharacters.Any(x =>
+                                             x.LocalContentId == character.CharacterId && x.IncludeFreeCompany);
+
                         values.Add(PointData.Measurement("currency")
                             .Tag("id", character.CharacterId.ToString())
                             .Tag("player_name", character.Name)
                             .Tag("type", character.CharacterType.ToString())
-                            .Tag("fc_id", character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
+                            .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString() : null)
                             .Field("gil", localStats?.Gil ?? currencies.Gil)
                             .Field("mgp", localStats?.MGP ?? 0)
                             .Field("ventures", currencies.Ventures)
@@ -104,7 +108,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
                                 .Tag("id", character.CharacterId.ToString())
                                 .Tag("player_name", character.Name)
                                 .Tag("type", character.CharacterType.ToString())
-                                .Tag("fc_id", character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
+                                .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString() : null)
                                 .Field("gc", localStats.GrandCompany)
                                 .Field("gc_rank", localStats.GcRank)
                                 .Field("seals", (GrandCompany)localStats.GrandCompany switch
@@ -143,8 +147,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
                                             .Tag("id", character.CharacterId.ToString())
                                             .Tag("player_name", character.Name)
                                             .Tag("type", character.CharacterType.ToString())
-                                            .Tag("fc_id",
-                                                character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
+                                            .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString() : null)
                                             .Tag("job", abbreviation)
                                             .Field("level", level)
                                             .Timestamp(date, WritePrecision.S));
@@ -158,8 +161,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
                                     .Tag("id", character.CharacterId.ToString())
                                     .Tag("player_name", character.Name)
                                     .Tag("msq_name", localStats.MsqName)
-                                    .Tag("fc_id",
-                                        character.FreeCompanyId > 0 ? character.FreeCompanyId.ToString() : null)
+                                    .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString() : null)
                                     .Field("msq_count", localStats.MsqCount)
                                     .Field("msq_genre", localStats.MsqGenre)
                                     .Timestamp(date, WritePrecision.S));
