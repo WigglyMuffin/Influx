@@ -149,16 +149,18 @@ internal sealed class ConfigurationWindow : Window
             foreach (var world in _configuration.IncludedCharacters.OrderBy(x => x.CachedWorldName)
                          .ThenBy(x => x.LocalContentId).GroupBy(x => x.CachedWorldName))
             {
-                ImGui.CollapsingHeader($"{world.Key} ({world.Count()})",
-                    ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.Bullet);
-                ImGui.Indent(30);
-                foreach (var characterInfo in world)
+                if (ImGui.CollapsingHeader($"{world.Key} ({world.Count()})##World{world.Key}",
+                        ImGuiTreeNodeFlags.DefaultOpen))
                 {
-                    ImGui.Selectable(
-                        $"{characterInfo.CachedPlayerName} @ {characterInfo.CachedWorldName} ({characterInfo.LocalContentId:X}{(!characterInfo.IncludeFreeCompany ? ", no FC" : "")})");
-                }
+                    ImGui.Indent(30);
+                    foreach (var characterInfo in world)
+                    {
+                        ImGui.Selectable(
+                            $"{characterInfo.CachedPlayerName} @ {characterInfo.CachedWorldName} ({characterInfo.LocalContentId:X}{(!characterInfo.IncludeFreeCompany ? ", no FC" : "")})");
+                    }
 
-                ImGui.Unindent(30);
+                    ImGui.Unindent(30);
+                }
             }
         }
     }
