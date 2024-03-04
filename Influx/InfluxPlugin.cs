@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -66,7 +67,7 @@ public class InfluxPlugin : IDalamudPlugin
         _windowSystem = new WindowSystem(typeof(InfluxPlugin).FullName);
         _statisticsWindow = new StatisticsWindow();
         _windowSystem.AddWindow(_statisticsWindow);
-        _configurationWindow = new ConfigurationWindow(_pluginInterface, clientState, _configuration);
+        _configurationWindow = new ConfigurationWindow(_pluginInterface, clientState, _configuration, _allaganToolsIpc);
         _configurationWindow.ConfigUpdated += (_, _) => _influxStatisticsClient.UpdateClient();
         _windowSystem.AddWindow(_configurationWindow);
 
@@ -110,6 +111,18 @@ public class InfluxPlugin : IDalamudPlugin
             if (characters.Count == 0)
                 return;
 
+            Dictionary<string, IReadOnlyList<SortingResult>> inventoryItems =
+                _configuration.IncludedInventoryFilters.Select(c => c.Name)
+                    .Distinct()
+                    .ToDictionary(c => c, c =>
+                    {
+                        var filter = _allaganToolsIpc.GetFilter(c);
+                        if (filter == null)
+                            return new List<SortingResult>();
+
+                        return filter.GenerateFilteredList();
+                    });
+
             var update = new StatisticsUpdate
             {
                 Currencies = currencies
@@ -118,6 +131,7 @@ public class InfluxPlugin : IDalamudPlugin
                         y.LocalContentId == x.Key.OwnerId ||
                         characters.Any(z => y.LocalContentId == z.CharacterId && z.FreeCompanyId == x.Key.CharacterId)))
                     .ToDictionary(x => x.Key, x => x.Value),
+                InventoryItems = inventoryItems,
                 Submarines = _submarineTrackerIpc.GetSubmarineStats(characters),
                 LocalStats = _localStatsCalculator.GetAllCharacterStats()
                     .Where(x => characters.Any(y => y.CharacterId == x.Key))

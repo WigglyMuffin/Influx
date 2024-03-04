@@ -7,6 +7,7 @@ using Influx.AllaganTools;
 using Influx.LocalStatistics;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
+using InfluxDB.Client.Core;
 using InfluxDB.Client.Writes;
 using Lumina.Excel.GeneratedSheets;
 using GrandCompany = FFXIVClientStructs.FFXIV.Client.UI.Agent.GrandCompany;
@@ -22,7 +23,8 @@ internal sealed class InfluxStatisticsClient : IDisposable
     private readonly IPluginLog _pluginLog;
     private readonly IReadOnlyDictionary<byte, byte> _classJobToArrayIndex;
     private readonly IReadOnlyDictionary<byte, string> _classJobNames;
-    private readonly Dictionary<sbyte, string> _expToJobs;
+    private readonly IReadOnlyDictionary<sbyte, string> _expToJobs;
+    private readonly IReadOnlyDictionary<uint, PriceInfo> _prices;
 
     public InfluxStatisticsClient(IChatGui chatGui, Configuration configuration, IDataManager dataManager,
         IClientState clientState, IPluginLog pluginLog)
@@ -41,6 +43,13 @@ internal sealed class InfluxStatisticsClient : IDisposable
             .Where(x => x.JobIndex > 0)
             .Where(x => x.Abbreviation.ToString() != "SMN")
             .ToDictionary(x => x.ExpArrayIndex, x => x.Abbreviation.ToString());
+        _prices = dataManager.GetExcelSheet<Item>()!
+            .ToDictionary(x => x.RowId, x => new PriceInfo
+            {
+                Name = x.Name.ToString(),
+                Normal = x.PriceLow,
+                UiCategory = x.ItemUICategory.Row,
+            });
     }
 
     public bool Enabled => _configuration.Server.Enabled &&
@@ -84,143 +93,16 @@ internal sealed class InfluxStatisticsClient : IDisposable
                 {
                     if (character.CharacterType == CharacterType.Character)
                     {
-                        update.LocalStats.TryGetValue(character, out LocalStats? localStats);
-
-                        bool includeFc = character.FreeCompanyId > 0 &&
-                                         _configuration.IncludedCharacters.Any(x =>
-                                             x.LocalContentId == character.CharacterId && x.IncludeFreeCompany);
-
-                        values.Add(PointData.Measurement("currency")
-                            .Tag("id", character.CharacterId.ToString())
-                            .Tag("player_name", character.Name)
-                            .Tag("type", character.CharacterType.ToString())
-                            .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString() : null)
-                            .Field("gil", localStats?.Gil ?? currencies.Gil)
-                            .Field("mgp", localStats?.MGP ?? 0)
-                            .Field("ventures", currencies.Ventures)
-                            .Field("ceruleum_tanks", currencies.CeruleumTanks)
-                            .Field("repair_kits", currencies.RepairKits)
-                            .Timestamp(date, WritePrecision.S));
-
-                        if (localStats != null)
-                        {
-                            values.Add(PointData.Measurement("grandcompany")
-                                .Tag("id", character.CharacterId.ToString())
-                                .Tag("player_name", character.Name)
-                                .Tag("type", character.CharacterType.ToString())
-                                .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString() : null)
-                                .Field("gc", localStats.GrandCompany)
-                                .Field("gc_rank", localStats.GcRank)
-                                .Field("seals", (GrandCompany)localStats.GrandCompany switch
-                                {
-                                    GrandCompany.Maelstrom => currencies.GcSealsMaelstrom,
-                                    GrandCompany.TwinAdder => currencies.GcSealsTwinAdders,
-                                    GrandCompany.ImmortalFlames => currencies.GcSealsImmortalFlames,
-                                    _ => 0,
-                                })
-                                .Field("seal_cap", localStats.GcRank switch
-                                {
-                                    1 => 10_000,
-                                    2 => 15_000,
-                                    3 => 20_000,
-                                    4 => 25_000,
-                                    5 => 30_000,
-                                    6 => 35_000,
-                                    7 => 40_000,
-                                    8 => 45_000,
-                                    9 => 50_000,
-                                    10 => 80_000,
-                                    11 => 90_000,
-                                    _ => 0,
-                                })
-                                .Field("squadron_unlocked", localStats.SquadronUnlocked ? 1 : 0)
-                                .Timestamp(date, WritePrecision.S));
-
-                            if (localStats.ClassJobLevels.Count > 0)
-                            {
-                                foreach (var (expIndex, abbreviation) in _expToJobs)
-                                {
-                                    var level = localStats.ClassJobLevels[expIndex];
-                                    if (level > 0)
-                                    {
-                                        values.Add(PointData.Measurement("experience")
-                                            .Tag("id", character.CharacterId.ToString())
-                                            .Tag("player_name", character.Name)
-                                            .Tag("type", character.CharacterType.ToString())
-                                            .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString() : null)
-                                            .Tag("job", abbreviation)
-                                            .Field("level", level)
-                                            .Timestamp(date, WritePrecision.S));
-                                    }
-                                }
-                            }
-
-                            if (localStats.MsqCount != -1)
-                            {
-                                values.Add(PointData.Measurement("quests")
-                                    .Tag("id", character.CharacterId.ToString())
-                                    .Tag("player_name", character.Name)
-                                    .Tag("msq_name", localStats.MsqName)
-                                    .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString() : null)
-                                    .Field("msq_count", localStats.MsqCount)
-                                    .Field("msq_genre", localStats.MsqGenre)
-                                    .Timestamp(date, WritePrecision.S));
-                            }
-                        }
+                        values.AddRange(GenerateCharacterStats(character, currencies, update, date));
                     }
                     else if (character.CharacterType == CharacterType.Retainer)
                     {
-                        var owner = currencyStats.Keys.First(x => x.CharacterId == character.OwnerId);
-                        values.Add(PointData.Measurement("currency")
-                            .Tag("id", character.CharacterId.ToString())
-                            .Tag("player_name", owner.Name)
-                            .Tag("player_id", character.OwnerId.ToString())
-                            .Tag("type", character.CharacterType.ToString())
-                            .Tag("retainer_name", character.Name)
-                            .Field("gil", currencies.Gil)
-                            .Field("ceruleum_tanks", currencies.CeruleumTanks)
-                            .Field("repair_kits", currencies.RepairKits)
-                            .Timestamp(date, WritePrecision.S));
-
-                        if (update.LocalStats.TryGetValue(owner, out var ownerStats) && character.ClassJob != 0)
-                        {
-                            values.Add(PointData.Measurement("retainer")
-                                .Tag("id", character.CharacterId.ToString())
-                                .Tag("player_name", owner.Name)
-                                .Tag("player_id", character.OwnerId.ToString())
-                                .Tag("type", character.CharacterType.ToString())
-                                .Tag("retainer_name", character.Name)
-                                .Tag("class", _classJobNames[character.ClassJob])
-                                .Field("level", character.Level)
-                                .Field("is_max_level", character.Level == ownerStats.MaxLevel ? 1 : 0)
-                                .Field("can_reach_max_level",
-                                    ownerStats.ClassJobLevels.Count > 0 &&
-                                    ownerStats.ClassJobLevels[_classJobToArrayIndex[character.ClassJob]] ==
-                                    ownerStats.MaxLevel
-                                        ? 1
-                                        : 0)
-                                .Field("levels_before_cap",
-                                    ownerStats.ClassJobLevels.Count > 0
-                                        ? ownerStats.ClassJobLevels[_classJobToArrayIndex[character.ClassJob]] -
-                                          character.Level
-                                        : 0)
-                                .Timestamp(date, WritePrecision.S));
-                        }
+                        values.AddRange(GenerateRetainerStats(character, currencies, update, date));
                     }
                     else if (character.CharacterType == CharacterType.FreeCompanyChest &&
                              validFcIds.Contains(character.CharacterId))
                     {
-                        update.FcStats.TryGetValue(character.CharacterId, out FcStats? fcStats);
-
-                        values.Add(PointData.Measurement("currency")
-                            .Tag("id", character.CharacterId.ToString())
-                            .Tag("fc_name", character.Name)
-                            .Tag("type", character.CharacterType.ToString())
-                            .Field("gil", currencies.Gil)
-                            .Field("fccredit", fcStats?.FcCredits ?? 0)
-                            .Field("ceruleum_tanks", currencies.CeruleumTanks)
-                            .Field("repair_kits", currencies.RepairKits)
-                            .Timestamp(date, WritePrecision.S));
+                        values.AddRange(GenerateFcStats(character, currencies, update, date));
                     }
                 }
 
@@ -263,8 +145,186 @@ internal sealed class InfluxStatisticsClient : IDisposable
         });
     }
 
+    private IEnumerable<PointData> GenerateCharacterStats(Character character, Currencies currencies,
+        StatisticsUpdate update, DateTime date)
+    {
+        update.LocalStats.TryGetValue(character, out LocalStats? localStats);
+
+        bool includeFc = character.FreeCompanyId > 0 &&
+                         _configuration.IncludedCharacters.Any(x =>
+                             x.LocalContentId == character.CharacterId && x.IncludeFreeCompany);
+
+        Func<string, PointData> pointData = s => PointData.Measurement(s)
+            .Tag("id", character.CharacterId.ToString())
+            .Tag("player_name", character.Name)
+            .Tag("type", character.CharacterType.ToString())
+            .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString() : null)
+            .Timestamp(date, WritePrecision.S);
+
+        yield return pointData("currency")
+            .Field("gil", localStats?.Gil ?? currencies.Gil)
+            .Field("mgp", localStats?.MGP ?? 0)
+            .Field("ventures", currencies.Ventures)
+            .Field("ceruleum_tanks", currencies.CeruleumTanks)
+            .Field("repair_kits", currencies.RepairKits);
+
+        if (localStats != null)
+        {
+            yield return pointData("grandcompany")
+                .Tag("id", character.CharacterId.ToString())
+                .Tag("player_name", character.Name)
+                .Tag("type", character.CharacterType.ToString())
+                .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString() : null)
+                .Field("gc", localStats.GrandCompany)
+                .Field("gc_rank", localStats.GcRank)
+                .Field("seals", (GrandCompany)localStats.GrandCompany switch
+                {
+                    GrandCompany.Maelstrom => currencies.GcSealsMaelstrom,
+                    GrandCompany.TwinAdder => currencies.GcSealsTwinAdders,
+                    GrandCompany.ImmortalFlames => currencies.GcSealsImmortalFlames,
+                    _ => 0,
+                })
+                .Field("seal_cap", localStats.GcRank switch
+                {
+                    1 => 10_000,
+                    2 => 15_000,
+                    3 => 20_000,
+                    4 => 25_000,
+                    5 => 30_000,
+                    6 => 35_000,
+                    7 => 40_000,
+                    8 => 45_000,
+                    9 => 50_000,
+                    10 => 80_000,
+                    11 => 90_000,
+                    _ => 0,
+                })
+                .Field("squadron_unlocked", localStats.SquadronUnlocked ? 1 : 0);
+
+            if (localStats.ClassJobLevels.Count > 0)
+            {
+                foreach (var (expIndex, abbreviation) in _expToJobs)
+                {
+                    var level = localStats.ClassJobLevels[expIndex];
+                    if (level > 0)
+                    {
+                        yield return pointData("experience")
+                            .Tag("job", abbreviation)
+                            .Field("level", level);
+                    }
+                }
+            }
+
+            if (localStats.MsqCount != -1)
+            {
+                yield return pointData("quests")
+                    .Tag("msq_name", localStats.MsqName)
+                    .Field("msq_count", localStats.MsqCount)
+                    .Field("msq_genre", localStats.MsqGenre);
+            }
+        }
+
+        foreach (var inventoryPoint in GenerateInventoryStats(character.CharacterId, update, pointData))
+            yield return inventoryPoint;
+    }
+
+    private IEnumerable<PointData> GenerateRetainerStats(Character character, Currencies currencies,
+        StatisticsUpdate update, DateTime date)
+    {
+        var owner = update.Currencies.Keys.First(x => x.CharacterId == character.OwnerId);
+
+        Func<string, PointData> pointData = s => PointData.Measurement(s)
+            .Tag("id", character.CharacterId.ToString())
+            .Tag("player_name", owner.Name)
+            .Tag("player_id", character.OwnerId.ToString())
+            .Tag("type", character.CharacterType.ToString())
+            .Tag("retainer_name", character.Name)
+            .Timestamp(date, WritePrecision.S);
+
+        yield return pointData("currency")
+            .Field("gil", currencies.Gil)
+            .Field("ceruleum_tanks", currencies.CeruleumTanks)
+            .Field("repair_kits", currencies.RepairKits);
+
+        if (update.LocalStats.TryGetValue(owner, out var ownerStats) && character.ClassJob != 0)
+        {
+            yield return pointData("retainer")
+                .Tag("class", _classJobNames[character.ClassJob])
+                .Field("level", character.Level)
+                .Field("is_max_level", character.Level == ownerStats.MaxLevel ? 1 : 0)
+                .Field("can_reach_max_level",
+                    ownerStats.ClassJobLevels.Count > 0 &&
+                    ownerStats.ClassJobLevels[_classJobToArrayIndex[character.ClassJob]] ==
+                    ownerStats.MaxLevel
+                        ? 1
+                        : 0)
+                .Field("levels_before_cap",
+                    ownerStats.ClassJobLevels.Count > 0
+                        ? ownerStats.ClassJobLevels[_classJobToArrayIndex[character.ClassJob]] -
+                          character.Level
+                        : 0);
+        }
+
+
+        foreach (var inventoryPoint in GenerateInventoryStats(character.CharacterId, update, pointData))
+            yield return inventoryPoint;
+    }
+
+    private IEnumerable<PointData> GenerateInventoryStats(ulong localContentId, StatisticsUpdate update,
+        Func<string, PointData> pointData)
+    {
+        foreach (var (filterName, items) in update.InventoryItems)
+        {
+            foreach (var item in items.Where(x => x.LocalContentId == localContentId)
+                         .GroupBy(x => new { x.ItemId, x.IsHq }))
+            {
+                _prices.TryGetValue(item.Key.ItemId, out PriceInfo priceInfo);
+                _pluginLog.Information($"CH {localContentId} → {priceInfo.Name} x {item.Sum(x => x.Quantity)}");
+
+                bool priceHq = item.Key.IsHq || priceInfo.UiCategory == 58; // materia always uses HQ prices
+
+                yield return pointData("items")
+                    .Tag("filter_name", filterName)
+                    .Tag("item_id", item.Key.ItemId.ToString())
+                    .Tag("item_name", priceInfo.Name)
+                    .Tag("hq", (item.Key.IsHq ? 1 : 0).ToString())
+                    .Field("quantity", item.Sum(x => x.Quantity))
+                    .Field("total_gil", item.Sum(x => x.Quantity) * (priceHq ? priceInfo.Hq : priceInfo.Normal));
+            }
+        }
+    }
+
+    private IEnumerable<PointData> GenerateFcStats(Character character, Currencies currencies, StatisticsUpdate update,
+        DateTime date)
+    {
+        update.FcStats.TryGetValue(character.CharacterId, out FcStats? fcStats);
+
+        Func<string, PointData> pointData = s => PointData.Measurement(s)
+            .Tag("id", character.CharacterId.ToString())
+            .Tag("fc_name", character.Name)
+            .Tag("type", character.CharacterType.ToString())
+            .Timestamp(date, WritePrecision.S);
+
+        yield return pointData("currency")
+            .Field("gil", currencies.Gil)
+            .Field("fccredit", fcStats?.FcCredits ?? 0)
+            .Field("ceruleum_tanks", currencies.CeruleumTanks)
+            .Field("repair_kits", currencies.RepairKits);
+
+        foreach (var inventoryPoint in GenerateInventoryStats(character.CharacterId, update, pointData))
+            yield return inventoryPoint;
+    }
+
     public void Dispose()
     {
         _influxClient?.Dispose();
+    }
+
+    private struct PriceInfo
+    {
+        public string Name { get; init; }
+        public uint Normal { get; init; }
+        public uint Hq => Normal + (uint)Math.Ceiling((decimal)Normal / 10);
+        public uint UiCategory { get; set; }
     }
 }

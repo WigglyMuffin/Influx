@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Linq;
+using Dalamud.Interface;
 using Dalamud.Interface.Colors;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ImGuiNET;
+using Influx.AllaganTools;
 
 namespace Influx.Windows;
 
@@ -14,14 +17,18 @@ internal sealed class ConfigurationWindow : Window
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
     private readonly Configuration _configuration;
+    private readonly AllaganToolsIpc _allaganToolsIpc;
+    private string[] _filterNames = Array.Empty<string>();
+    private int _filterIndexToAdd = 0;
 
     public ConfigurationWindow(DalamudPluginInterface pluginInterface, IClientState clientState,
-        Configuration configuration)
+        Configuration configuration, AllaganToolsIpc allaganToolsIpc)
         : base("Configuration###InfluxConfiguration")
     {
         _pluginInterface = pluginInterface;
         _clientState = clientState;
         _configuration = configuration;
+        _allaganToolsIpc = allaganToolsIpc;
     }
 
     public event EventHandler? ConfigUpdated;
@@ -33,7 +40,17 @@ internal sealed class ConfigurationWindow : Window
         {
             DrawConnectionSettings();
             DrawIncludedCharacters();
+            DrawAllaganToolsFilters();
         }
+    }
+
+    public override void OnOpen()
+    {
+        _filterNames = _allaganToolsIpc.GetSearchFilters()
+            .Select(x => x.Value)
+            .Order()
+            .ToArray();
+        _filterIndexToAdd = 0;
     }
 
     private void DrawConnectionSettings()
@@ -162,6 +179,64 @@ internal sealed class ConfigurationWindow : Window
                     ImGui.Unindent(30);
                 }
             }
+        }
+    }
+
+    private void DrawAllaganToolsFilters()
+    {
+        using var tabItem = ImRaii.TabItem("Inventory Filters");
+        if (!tabItem)
+            return;
+
+        if (_configuration.IncludedInventoryFilters.Count > 0)
+        {
+            int? indexToRemove = null;
+
+            ImGui.Text("Selected Filters:");
+            ImGui.Indent(30);
+            foreach (var filter in _configuration.IncludedInventoryFilters)
+            {
+                if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Times, $"{filter.Name}"))
+                {
+                    indexToRemove = _configuration.IncludedInventoryFilters.IndexOf(filter);
+                }
+            }
+
+            ImGui.Unindent(30);
+
+            if (indexToRemove != null)
+            {
+                _configuration.IncludedInventoryFilters.RemoveAt(indexToRemove.Value);
+                Save();
+            }
+        }
+        else
+        {
+            ImGui.Text("You are not tracking any AllaganTools filters.");
+        }
+
+        ImGui.Separator();
+
+        if (_filterNames.Length > 0)
+        {
+            ImGui.Combo("Add Search Filter", ref _filterIndexToAdd, _filterNames, _filterNames.Length);
+
+            ImGui.BeginDisabled(_configuration.IncludedInventoryFilters.Any(x => x.Name == _filterNames[_filterIndexToAdd]));
+            if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Track Filter"))
+            {
+                _configuration.IncludedInventoryFilters.Add(new Configuration.FilterInfo
+                {
+                    Name = _filterNames[_filterIndexToAdd],
+                });
+                Save();
+            }
+
+            ImGui.EndDisabled();
+        }
+        else
+        {
+            ImGui.TextColored(ImGuiColors.DalamudRed,
+                "You don't have any search filters, or the AllaganTools integration doesn't work.");
         }
     }
 

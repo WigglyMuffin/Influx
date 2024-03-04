@@ -15,22 +15,27 @@ internal sealed class AllaganToolsIpc : IDisposable
     private readonly DalamudReflector _dalamudReflector;
     private readonly IFramework _framework;
     private readonly IPluginLog _pluginLog;
-    private readonly ICallGateSubscriber<bool, bool>? _initalized;
+    private readonly ICallGateSubscriber<bool, bool>? _initialized;
     private readonly ICallGateSubscriber<bool>? _isInitialized;
+    private readonly ICallGateSubscriber<Dictionary<string, string>> _getSearchFilters;
 
     public ICharacterMonitor Characters { get; private set; } = new UnavailableCharacterMonitor();
     public IInventoryMonitor Inventories { get; private set; } = new UnavailableInventoryMonitor();
+    public IFilterService Filters { get; set; } = new UnavailableFilterService();
 
-    public AllaganToolsIpc(DalamudPluginInterface pluginInterface, IChatGui chatGui, DalamudReflector dalamudReflector, IFramework framework, IPluginLog pluginLog)
+    public AllaganToolsIpc(DalamudPluginInterface pluginInterface, IChatGui chatGui, DalamudReflector dalamudReflector,
+        IFramework framework, IPluginLog pluginLog)
     {
         _chatGui = chatGui;
         _dalamudReflector = dalamudReflector;
         _framework = framework;
         _pluginLog = pluginLog;
 
-        _initalized = pluginInterface.GetIpcSubscriber<bool, bool>("AllaganTools.Initialized");
+        _initialized = pluginInterface.GetIpcSubscriber<bool, bool>("AllaganTools.Initialized");
         _isInitialized = pluginInterface.GetIpcSubscriber<bool>("AllaganTools.IsInitialized");
-        _initalized.Subscribe(ConfigureIpc);
+        _initialized.Subscribe(ConfigureIpc);
+        _getSearchFilters =
+            pluginInterface.GetIpcSubscriber<Dictionary<string, string>>("AllaganTools.GetSearchFilters");
 
         try
         {
@@ -58,6 +63,7 @@ internal sealed class AllaganToolsIpc : IDisposable
                     Characters = new CharacterMonitor(pluginService.GetProperty("CharacterMonitor")!.GetValue(null)!);
                     Inventories = new InventoryMonitor(
                         pluginService.GetProperty("InventoryMonitor")!.GetValue(null)!);
+                    Filters = new FilterService(pluginService.GetProperty("FilterService")!.GetValue(null)!);
                 }
                 else
                 {
@@ -70,6 +76,32 @@ internal sealed class AllaganToolsIpc : IDisposable
                 _chatGui.PrintError(e.ToString());
             }
         }, TimeSpan.FromMilliseconds(100));
+    }
+
+    public Dictionary<string, string> GetSearchFilters()
+    {
+        try
+        {
+            return _getSearchFilters.InvokeFunc();
+        }
+        catch (IpcError e)
+        {
+            _pluginLog.Error(e, "Unable to retrieve allagantools filters");
+            return new Dictionary<string, string>();
+        }
+    }
+
+    public Filter? GetFilter(string keyOrName)
+    {
+        try
+        {
+            return Filters.GetFilterByKeyOrName(keyOrName);
+        }
+        catch (IpcError e)
+        {
+            _pluginLog.Error(e, $"Unable to retrieve filter items for filter '{keyOrName}'");
+            return null;
+        }
     }
 
     public Dictionary<Character, Currencies> CountCurrencies()
@@ -98,9 +130,10 @@ internal sealed class AllaganToolsIpc : IDisposable
 
     public void Dispose()
     {
-        _initalized?.Unsubscribe(ConfigureIpc);
+        _initialized?.Unsubscribe(ConfigureIpc);
         Characters = new UnavailableCharacterMonitor();
         Inventories = new UnavailableInventoryMonitor();
+        Filters = new UnavailableFilterService();
     }
 
     private sealed class InventoryWrapper

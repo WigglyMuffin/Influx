@@ -10,6 +10,7 @@ public sealed class Configuration : IPluginConfiguration
     public ServerConfiguration Server { get; set; } = new();
 
     public List<CharacterInfo> IncludedCharacters { get; set; } = new();
+    public List<FilterInfo> IncludedInventoryFilters { get; set; } = new();
 
     public sealed class ServerConfiguration
     {
@@ -26,5 +27,10 @@ public sealed class Configuration : IPluginConfiguration
         public string? CachedPlayerName { get; set; }
         public string? CachedWorldName { get; set; }
         public bool IncludeFreeCompany { get; set; } = true;
+    }
+
+    public sealed class FilterInfo
+    {
+        public required string Name { get; set; }
     }
 }
