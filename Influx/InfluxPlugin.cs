@@ -2,28 +2,17 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
-using AutoRetainerAPI;
-using Dalamud.Game.Addon.Lifecycle;
-using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
+using System.Timers;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
-using Dalamud.Memory;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using ECommons;
-using ECommons.Automation;
-using FFXIVClientStructs.FFXIV.Client.System.Framework;
-using FFXIVClientStructs.FFXIV.Client.UI.Info;
-using FFXIVClientStructs.FFXIV.Component.GUI;
 using Influx.AllaganTools;
 using Influx.Influx;
 using Influx.LocalStatistics;
 using Influx.SubmarineTracker;
 using Influx.Windows;
 using LLib;
-using Task = System.Threading.Tasks.Task;
 
 namespace Influx;
 
@@ -72,7 +61,12 @@ public class InfluxPlugin : IDalamudPlugin
         _windowSystem.AddWindow(_configurationWindow);
 
         _commandManager.AddHandler("/influx", new CommandInfo(ProcessCommand));
-        _timer = new Timer(_ => UpdateStatistics(), null, TimeSpan.Zero, TimeSpan.FromMinutes(1));
+
+        _timer = new Timer(TimeSpan.FromMinutes(1));
+        _timer.Elapsed += (_, _) => UpdateStatistics();
+        _timer.AutoReset = true;
+        _timer.Enabled = true;
+
         _pluginInterface.UiBuilder.Draw += _windowSystem.Draw;
         _pluginInterface.UiBuilder.OpenConfigUi += _configurationWindow.Toggle;
     }
@@ -158,6 +152,7 @@ public class InfluxPlugin : IDalamudPlugin
     {
         _pluginInterface.UiBuilder.OpenConfigUi -= _configurationWindow.Toggle;
         _pluginInterface.UiBuilder.Draw -= _windowSystem.Draw;
+        _timer.Stop();
         _timer.Dispose();
         _windowSystem.RemoveAllWindows();
         _commandManager.RemoveHandler("/influx");
