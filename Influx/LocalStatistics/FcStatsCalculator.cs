@@ -13,7 +13,6 @@ using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.UI.Info;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Newtonsoft.Json;
-using Task = System.Threading.Tasks.Task;
 
 namespace Influx.LocalStatistics;
 
@@ -30,7 +29,7 @@ public class FcStatsCalculator : IDisposable
 
     private readonly Dictionary<ulong, FcStats> _cache = new();
 
-    private bool closeFcWindow = false;
+    private Status? _status = null;
 
     public FcStatsCalculator(
         IDalamudPlugin plugin,
@@ -54,7 +53,9 @@ public class FcStatsCalculator : IDisposable
         _autoRetainerApi = new();
         _autoRetainerApi.OnCharacterPostprocessStep += CheckCharacterPostProcess;
         _autoRetainerApi.OnCharacterReadyToPostProcess += DoCharacterPostProcess;
-        _addonLifecycle.RegisterListener(AddonEvent.PostReceiveEvent, "FreeCompany", CloseFcWindow);
+        _addonLifecycle.RegisterListener(AddonEvent.PostReceiveEvent, "FreeCompany", FcPostReceiveEvent);
+        _framework.Update += FrameworkUpdate;
+        _clientState.Logout += Logout;
 
         foreach (var file in _pluginInterface.ConfigDirectory.GetFiles("f.*.json"))
         {
@@ -99,45 +100,51 @@ public class FcStatsCalculator : IDisposable
 
     private void DoCharacterPostProcess()
     {
-        closeFcWindow = true;
+        _status = new();
 
         unsafe
         {
             AtkUnitBase* addon = (AtkUnitBase*)_gameGui.GetAddonByName("FreeCompany");
             if (addon != null && addon->IsVisible)
-                CloseFcWindow(AddonEvent.PostReceiveEvent);
+                FcPostReceiveEvent(AddonEvent.PostReceiveEvent);
             else
                 Chat.Instance.SendMessage("/freecompanycmd");
         }
     }
 
-    private void CloseFcWindow(AddonEvent type, AddonArgs? args = null)
+    private void FcPostReceiveEvent(AddonEvent type, AddonArgs? args = null)
     {
-        _framework.RunOnTick(() => UpdateOnTick(0), TimeSpan.FromMilliseconds(100));
+        if (_status != null)
+        {
+            _pluginLog.Verbose("FC window received event...");
+            _status.WindowOpened = true;
+        }
+        else
+            _pluginLog.Verbose("Not tracking status for FC window");
     }
 
-    private void UpdateOnTick(int counter)
+    private void FrameworkUpdate(IFramework framework)
     {
-        bool finalAttempt = ++counter >= 10;
-        if (UpdateFcCredits() || finalAttempt)
-        {
-            if (closeFcWindow)
-            {
-                unsafe
-                {
-                    AtkUnitBase* addon = (AtkUnitBase*)_gameGui.GetAddonByName("FreeCompany");
-                    if (addon != null && addon->IsVisible)
-                        addon->FireCallbackInt(-1);
-                }
-
-                closeFcWindow = false;
-                _autoRetainerApi.FinishCharacterPostProcess();
-            }
-
+        if (_status == null)
             return;
-        }
 
-        _framework.RunOnTick(() => UpdateOnTick(counter + 1), TimeSpan.FromMilliseconds(100));
+        if (_status.FallbackFinishPostProcessing < DateTime.Now)
+        {
+            _status = null;
+            _autoRetainerApi.FinishCharacterPostProcess();
+        }
+        else if (_status.WindowOpened && UpdateFcCredits())
+        {
+            _status = null;
+            _autoRetainerApi.FinishCharacterPostProcess();
+        }
+    }
+
+    private void Logout()
+    {
+        if (_status != null)
+            _autoRetainerApi.FinishCharacterPostProcess();
+        _status = null;
     }
 
     // ideally we'd hook the update to the number array, but #effort
@@ -210,10 +217,18 @@ public class FcStatsCalculator : IDisposable
 
     public void Dispose()
     {
-        _addonLifecycle.UnregisterListener(AddonEvent.PostReceiveEvent, "FreeCompany", CloseFcWindow);
+        _clientState.Logout -= Logout;
+        _framework.Update -= FrameworkUpdate;
+        _addonLifecycle.UnregisterListener(AddonEvent.PostReceiveEvent, "FreeCompany", FcPostReceiveEvent);
         _autoRetainerApi.OnCharacterPostprocessStep -= CheckCharacterPostProcess;
         _autoRetainerApi.OnCharacterReadyToPostProcess -= DoCharacterPostProcess;
         _autoRetainerApi.Dispose();
         ECommonsMain.Dispose();
+    }
+
+    private sealed class Status
+    {
+        public bool WindowOpened { get; set; }
+        public DateTime FallbackFinishPostProcessing { get; set; } = DateTime.Now.AddSeconds(10);
     }
 }
