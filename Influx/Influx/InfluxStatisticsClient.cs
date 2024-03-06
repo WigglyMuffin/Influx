@@ -73,6 +73,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
             return;
 
         DateTime date = DateTime.UtcNow;
+        date = new DateTime(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second, DateTimeKind.Utc);
         IReadOnlyDictionary<Character, Currencies> currencyStats = update.Currencies;
 
         var validFcIds = currencyStats.Keys
@@ -162,7 +163,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
             .Timestamp(date, WritePrecision.S);
 
         yield return pointData("currency")
-            .Field("gil", localStats?.Gil ?? currencies.Gil)
+            .Field("gil", localStats?.Gil ?? 0)
             .Field("mgp", localStats?.MGP ?? 0)
             .Field("ventures", currencies.Ventures)
             .Field("ceruleum_tanks", currencies.CeruleumTanks)
@@ -171,10 +172,6 @@ internal sealed class InfluxStatisticsClient : IDisposable
         if (localStats != null)
         {
             yield return pointData("grandcompany")
-                .Tag("id", character.CharacterId.ToString())
-                .Tag("player_name", character.Name)
-                .Tag("type", character.CharacterType.ToString())
-                .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString() : null)
                 .Field("gc", localStats.GrandCompany)
                 .Field("gc_rank", localStats.GcRank)
                 .Field("seals", (GrandCompany)localStats.GrandCompany switch
@@ -279,7 +276,6 @@ internal sealed class InfluxStatisticsClient : IDisposable
                          .GroupBy(x => new { x.ItemId, x.IsHq }))
             {
                 _prices.TryGetValue(item.Key.ItemId, out PriceInfo priceInfo);
-                _pluginLog.Information($"CH {localContentId} → {priceInfo.Name} x {item.Sum(x => x.Quantity)}");
 
                 bool priceHq = item.Key.IsHq || priceInfo.UiCategory == 58; // materia always uses HQ prices
 
