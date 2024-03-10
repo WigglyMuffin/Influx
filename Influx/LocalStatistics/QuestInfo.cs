@@ -2,7 +2,7 @@
 
 namespace Influx.LocalStatistics;
 
-public class QuestInfo
+public sealed class QuestInfo
 {
     public required uint RowId { get; init; }
     public required string Name { get; init; }

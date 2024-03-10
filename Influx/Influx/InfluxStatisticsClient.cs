@@ -7,7 +7,6 @@ using Influx.AllaganTools;
 using Influx.LocalStatistics;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
-using InfluxDB.Client.Core;
 using InfluxDB.Client.Writes;
 using Lumina.Excel.GeneratedSheets;
 using GrandCompany = FFXIVClientStructs.FFXIV.Client.UI.Agent.GrandCompany;
@@ -136,7 +135,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
                     values,
                     _configuration.Server.Bucket, _configuration.Server.Organization);
 
-                //_chatGui.Print($"Influx: {values.Count} points");
+                _pluginLog.Verbose($"Influx: Sent {values.Count} data points to server");
             }
             catch (Exception e)
             {

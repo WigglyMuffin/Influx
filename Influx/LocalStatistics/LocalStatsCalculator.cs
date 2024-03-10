@@ -1,17 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
-using Dalamud.Memory;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
-using FFXIVClientStructs.FFXIV.Client.UI;
 using Lumina.Excel.GeneratedSheets;
 using Newtonsoft.Json;
 
@@ -33,7 +30,6 @@ internal sealed class LocalStatsCalculator : IDisposable
     private readonly IClientState _clientState;
     private readonly IAddonLifecycle _addonLifecycle;
     private readonly IPluginLog _pluginLog;
-    private readonly GameStrings _gameStrings;
     private readonly Dictionary<ulong, LocalStats> _cache = new();
 
     private IReadOnlyList<QuestInfo>? _gridaniaStart;
@@ -53,11 +49,9 @@ internal sealed class LocalStatsCalculator : IDisposable
         _clientState = clientState;
         _addonLifecycle = addonLifecycle;
         _pluginLog = pluginLog;
-        _gameStrings = new GameStrings(dataManager, pluginLog);
 
         _clientState.Login += UpdateStatistics;
         _clientState.TerritoryChanged += UpdateStatistics;
-        _addonLifecycle.RegisterListener(AddonEvent.PostSetup, "SelectYesno", UpdateStatisticsLogout);
         _addonLifecycle.RegisterListener(AddonEvent.PreSetup, "JournalAccept", UpdateStatistics);
 
         Task.Run(() =>
@@ -154,20 +148,12 @@ internal sealed class LocalStatsCalculator : IDisposable
     public void Dispose()
     {
         _addonLifecycle.UnregisterListener(AddonEvent.PreSetup, "JournalAccept", UpdateStatistics);
-        _addonLifecycle.UnregisterListener(AddonEvent.PostSetup, "SelectYesno", UpdateStatisticsLogout);
         _clientState.Login -= UpdateStatistics;
     }
 
     private void UpdateStatistics(ushort territoryType) => UpdateStatistics();
 
-    private unsafe void UpdateStatisticsLogout(AddonEvent type, AddonArgs args)
-    {
-        AddonSelectYesno* addonSelectYesNo = (AddonSelectYesno*)args.Addon;
-        string? text = MemoryHelper.ReadSeString(&addonSelectYesNo->PromptText->NodeText)?.ToString();
-        text = text?.Replace("\n", "").Replace("\r", "");
-        if (text == _gameStrings.LogoutToTitleScreen || text == _gameStrings.LogoutAndExitGame)
-            UpdateStatistics();
-    }
+    public void UpdateStatisticsLogout() => UpdateStatistics();
 
     private void UpdateStatistics(AddonEvent type, AddonArgs args) => UpdateStatistics();
 

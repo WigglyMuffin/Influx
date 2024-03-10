@@ -10,18 +10,24 @@
       },
       "InfluxDB.Client": {
         "type": "Direct",
-        "requested": "[4.13.0, )",
-        "resolved": "4.13.0",
-        "contentHash": "2kDPC//sbSjm6R8lxqJrufNfF1AMhmeVw7dBnrOsMQjjxvaPrWFkITWIlL8AVtg5TdTqah9APp1laaJye6ebFg==",
+        "requested": "[4.14.0, )",
+        "resolved": "4.14.0",
+        "contentHash": "X42YEtBon4thG3qsbRWxO6VAadnX4CBn1xLhNYZGNizUMUboyut6VlRqa5BGiU1pHe4MCP+cds9rD4nWGB7vsQ==",
         "dependencies": {
-          "InfluxDB.Client.Core": "4.13.0",
+          "InfluxDB.Client.Core": "4.14.0",
           "JsonSubTypes": "2.0.1",
-          "Microsoft.Extensions.ObjectPool": "7.0.9",
+          "Microsoft.Extensions.ObjectPool": "7.0.13",
           "Microsoft.Net.Http.Headers": "2.2.8",
           "System.Collections.Immutable": "6.0.0",
           "System.Configuration.ConfigurationManager": "6.0.1",
           "System.Reactive": "6.0.0"
         }
+      },
+      "Microsoft.Extensions.ObjectPool": {
+        "type": "Direct",
+        "requested": "[8.0.2, )",
+        "resolved": "8.0.2",
+        "contentHash": "LA7lDy048CVjGCwsPqRFVwH8vl5ooHmSFji13Oczw+mOnGhqenWXttkWcJ5dhIR0bhayZrQz4BaSPEVtE8Tt0A=="
       },
       "CsvHelper": {
         "type": "Transitive",
@@ -30,13 +36,13 @@
       },
       "InfluxDB.Client.Core": {
         "type": "Transitive",
-        "resolved": "4.13.0",
-        "contentHash": "SS6kVhUuQTjpbCBn6ULgXz/tLSttZhMEhmr0Vxk3vnvtlce4mYjX48NLk8QHWdUEyTL195AGrSyZTqYaDTZrgA==",
+        "resolved": "4.14.0",
+        "contentHash": "PtySdJE39Tv1T8p9SSpJve0Vm2gBzLdsHRL/weA97fEkeMip6Iw6zdgvb4ANWJ0MbYbprQQkSaZj2e4pTJpO6Q==",
         "dependencies": {
           "CsvHelper": "30.0.1",
           "Newtonsoft.Json": "13.0.3",
           "NodaTime": "3.1.9",
-          "NodaTime.Serialization.JsonNet": "3.0.1",
+          "NodaTime.Serialization.JsonNet": "3.1.0",
           "RestSharp": "110.1.0"
         }
       },
@@ -47,11 +53,6 @@
         "dependencies": {
           "Newtonsoft.Json": "13.0.1"
         }
-      },
-      "Microsoft.Extensions.ObjectPool": {
-        "type": "Transitive",
-        "resolved": "7.0.9",
-        "contentHash": "fFYlvFV8gle6IJ7Z0C3IydLfrzruL82pbBmn7oGsPK0zPtyN4pk2uX242ATOKbodZlRqLMAH6RE5wkRMCbkxug=="
       },
       "Microsoft.Extensions.Primitives": {
         "type": "Transitive",
@@ -91,10 +92,10 @@
       },
       "NodaTime.Serialization.JsonNet": {
         "type": "Transitive",
-        "resolved": "3.0.1",
-        "contentHash": "bmw+ElaOr21HZQQVYWZKgqs0QpSb/rJcJxem3Ok6YWAdenqOi0PS2hIkvlh+QJfsl2X3VJcla9Rhya/N3JnweA==",
+        "resolved": "3.1.0",
+        "contentHash": "eEr9lXUz50TYr4rpeJG4TDAABkpxjIKr5mDSi/Zav8d6Njy6fH7x4ZtNwWFj0Vd+vIvEZNrHFQ4Gfy8j4BqRGg==",
         "dependencies": {
-          "Newtonsoft.Json": "13.0.1",
+          "Newtonsoft.Json": "13.0.3",
           "NodaTime": "[3.0.0, 4.0.0)"
         }
       },

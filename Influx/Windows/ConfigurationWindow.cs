@@ -101,7 +101,7 @@ internal sealed class ConfigurationWindow : Window
         if (!tabItem)
             return;
 
-        if (_clientState is { IsLoggedIn: true, LocalContentId: > 0 })
+        if (_clientState is { IsLoggedIn: true, LocalContentId: > 0, LocalPlayer.HomeWorld: not null })
         {
             string worldName = _clientState.LocalPlayer?.HomeWorld.GameData?.Name ?? "??";
             ImGui.TextWrapped(

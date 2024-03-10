@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Timers;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
@@ -17,12 +18,14 @@ using LLib;
 namespace Influx;
 
 [SuppressMessage("ReSharper", "UnusedType.Global")]
-public class InfluxPlugin : IDalamudPlugin
+public sealed class InfluxPlugin : IDalamudPlugin
 {
+    private readonly object _lock = new();
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly Configuration _configuration;
     private readonly IClientState _clientState;
     private readonly ICommandManager _commandManager;
+    private readonly ICondition _condition;
     private readonly IPluginLog _pluginLog;
     private readonly AllaganToolsIpc _allaganToolsIpc;
     private readonly SubmarineTrackerIpc _submarineTrackerIpc;
@@ -36,12 +39,13 @@ public class InfluxPlugin : IDalamudPlugin
 
     public InfluxPlugin(DalamudPluginInterface pluginInterface, IClientState clientState, IPluginLog pluginLog,
         ICommandManager commandManager, IChatGui chatGui, IDataManager dataManager, IFramework framework,
-        IAddonLifecycle addonLifecycle, IGameGui gameGui)
+        IAddonLifecycle addonLifecycle, IGameGui gameGui, ICondition condition)
     {
         _pluginInterface = pluginInterface;
         _configuration = LoadConfig();
         _clientState = clientState;
         _commandManager = commandManager;
+        _condition = condition;
         _pluginLog = pluginLog;
         DalamudReflector dalamudReflector = new DalamudReflector(pluginInterface, framework, pluginLog);
         _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, dalamudReflector, framework, _pluginLog);
@@ -69,6 +73,7 @@ public class InfluxPlugin : IDalamudPlugin
 
         _pluginInterface.UiBuilder.Draw += _windowSystem.Draw;
         _pluginInterface.UiBuilder.OpenConfigUi += _configurationWindow.Toggle;
+        _condition.ConditionChange += UpdateOnLogout;
     }
 
     private Configuration LoadConfig()
@@ -94,62 +99,91 @@ public class InfluxPlugin : IDalamudPlugin
 
     private void UpdateStatistics()
     {
-        if (!_clientState.IsLoggedIn ||
-            _configuration.IncludedCharacters.All(x => x.LocalContentId != _clientState.LocalContentId))
-            return;
-
-        try
+        lock (_lock)
         {
-            var currencies = _allaganToolsIpc.CountCurrencies();
-            var characters = currencies.Keys.ToList();
-            if (characters.Count == 0)
-                return;
-
-            Dictionary<string, IReadOnlyList<SortingResult>> inventoryItems =
-                _configuration.IncludedInventoryFilters.Select(c => c.Name)
-                    .Distinct()
-                    .ToDictionary(c => c, c =>
-                    {
-                        var filter = _allaganToolsIpc.GetFilter(c);
-                        if (filter == null)
-                            return new List<SortingResult>();
-
-                        return filter.GenerateFilteredList();
-                    });
-
-            var update = new StatisticsUpdate
+            if (!_clientState.IsLoggedIn ||
+                _configuration.IncludedCharacters.All(x => x.LocalContentId != _clientState.LocalContentId))
             {
-                Currencies = currencies
-                    .Where(x => _configuration.IncludedCharacters.Any(y =>
-                        y.LocalContentId == x.Key.CharacterId ||
-                        y.LocalContentId == x.Key.OwnerId ||
-                        characters.Any(z => y.LocalContentId == z.CharacterId && z.FreeCompanyId == x.Key.CharacterId)))
-                    .ToDictionary(x => x.Key, x => x.Value),
-                InventoryItems = inventoryItems,
-                Submarines = _submarineTrackerIpc.GetSubmarineStats(characters),
-                LocalStats = _localStatsCalculator.GetAllCharacterStats()
-                    .Where(x => characters.Any(y => y.CharacterId == x.Key))
-                    .ToDictionary(x => characters.First(y => y.CharacterId == x.Key), x => x.Value)
-                    .Where(x => _configuration.IncludedCharacters.Any(y =>
-                        y.LocalContentId == x.Key.CharacterId ||
-                        y.LocalContentId == x.Key.OwnerId ||
-                        characters.Any(z => y.LocalContentId == z.CharacterId && z.FreeCompanyId == x.Key.CharacterId)))
-                    .ToDictionary(x => x.Key, x => x.Value),
-                FcStats = _fcStatsCalculator.GetAllFcStats()
-                    .Where(x => characters.Any(y => y.FreeCompanyId == x.Key))
-                    .ToDictionary(x => x.Key, x => x.Value),
-            };
-            _statisticsWindow.OnStatisticsUpdate(update);
-            _influxStatisticsClient.OnStatisticsUpdate(update);
+                _pluginLog.Verbose("Influx: not logged in or not enabled for this character");
+                return;
+            }
+
+            try
+            {
+                var currencies = _allaganToolsIpc.CountCurrencies();
+                var characters = currencies.Keys.ToList();
+                if (characters.Count == 0)
+                {
+                    _pluginLog.Warning("Found 0 AllaganTools characters");
+                    return;
+                }
+
+                Dictionary<string, IReadOnlyList<SortingResult>> inventoryItems =
+                    _configuration.IncludedInventoryFilters.Select(c => c.Name)
+                        .Distinct()
+                        .ToDictionary(c => c, c =>
+                        {
+                            var filter = _allaganToolsIpc.GetFilter(c);
+                            if (filter == null)
+                                return new List<SortingResult>();
+
+                            return filter.GenerateFilteredList();
+                        });
+
+                var update = new StatisticsUpdate
+                {
+                    Currencies = currencies
+                        .Where(x => _configuration.IncludedCharacters.Any(y =>
+                            y.LocalContentId == x.Key.CharacterId ||
+                            y.LocalContentId == x.Key.OwnerId ||
+                            characters.Any(z =>
+                                y.LocalContentId == z.CharacterId && z.FreeCompanyId == x.Key.CharacterId)))
+                        .ToDictionary(x => x.Key, x => x.Value),
+                    InventoryItems = inventoryItems,
+                    Submarines = _submarineTrackerIpc.GetSubmarineStats(characters),
+                    LocalStats = _localStatsCalculator.GetAllCharacterStats()
+                        .Where(x => characters.Any(y => y.CharacterId == x.Key))
+                        .ToDictionary(x => characters.First(y => y.CharacterId == x.Key), x => x.Value)
+                        .Where(x => _configuration.IncludedCharacters.Any(y =>
+                            y.LocalContentId == x.Key.CharacterId ||
+                            y.LocalContentId == x.Key.OwnerId ||
+                            characters.Any(z =>
+                                y.LocalContentId == z.CharacterId && z.FreeCompanyId == x.Key.CharacterId)))
+                        .ToDictionary(x => x.Key, x => x.Value),
+                    FcStats = _fcStatsCalculator.GetAllFcStats()
+                        .Where(x => characters.Any(y => y.FreeCompanyId == x.Key))
+                        .ToDictionary(x => x.Key, x => x.Value),
+                };
+                _statisticsWindow.OnStatisticsUpdate(update);
+                _influxStatisticsClient.OnStatisticsUpdate(update);
+            }
+            catch (Exception e)
+            {
+                _pluginLog.Error(e, "failed to update statistics");
+            }
         }
-        catch (Exception e)
+    }
+
+    private void UpdateOnLogout(ConditionFlag flag, bool value)
+    {
+        if (flag == ConditionFlag.LoggingOut && value)
         {
-            _pluginLog.Error(e, "failed to update statistics");
+            try
+            {
+                _timer.Enabled = false;
+                _localStatsCalculator.UpdateStatisticsLogout();
+                UpdateStatistics();
+            }
+            finally
+            {
+                _timer.Enabled = true;
+            }
         }
     }
 
     public void Dispose()
     {
+        _condition.ConditionChange -= UpdateOnLogout;
         _pluginInterface.UiBuilder.OpenConfigUi -= _configurationWindow.Toggle;
         _pluginInterface.UiBuilder.Draw -= _windowSystem.Draw;
         _timer.Stop();
