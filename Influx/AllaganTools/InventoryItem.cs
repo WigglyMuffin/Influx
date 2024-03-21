@@ -1,14 +1,14 @@
-﻿namespace Influx.AllaganTools;
+﻿using System;
+
+namespace Influx.AllaganTools;
 
 internal sealed class InventoryItem
 {
-    private readonly object _delegate;
-
     public InventoryItem(object @delegate)
     {
-        _delegate = @delegate;
-        ItemId = (uint)_delegate.GetType().GetField("ItemId")!.GetValue(_delegate)!;
-        Quantity = (uint)_delegate.GetType().GetField("Quantity")!.GetValue(_delegate)!;
+        ArgumentNullException.ThrowIfNull(@delegate);
+        ItemId = (uint)@delegate.GetType().GetField("ItemId")!.GetValue(@delegate)!;
+        Quantity = (uint)@delegate.GetType().GetField("Quantity")!.GetValue(@delegate)!;
     }
 
     public uint ItemId { get; }

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
@@ -36,7 +37,7 @@ internal sealed class StatisticsWindow : Window
                     ImGui.Text(row.Name);
 
                 if (ImGui.TableNextColumn())
-                    ImGui.Text(row.Gil.ToString("N0"));
+                    ImGui.Text(row.Gil.ToString("N0", CultureInfo.InvariantCulture));
             }
 
             ImGui.EndTable();

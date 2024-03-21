@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Dalamud.Plugin.Services;
@@ -23,7 +25,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
     private readonly IReadOnlyDictionary<byte, byte> _classJobToArrayIndex;
     private readonly IReadOnlyDictionary<byte, string> _classJobNames;
     private readonly IReadOnlyDictionary<sbyte, string> _expToJobs;
-    private readonly IReadOnlyDictionary<uint, PriceInfo> _prices;
+    private readonly ReadOnlyDictionary<uint, PriceInfo> _prices;
 
     public InfluxStatisticsClient(IChatGui chatGui, Configuration configuration, IDataManager dataManager,
         IClientState clientState, IPluginLog pluginLog)
@@ -43,12 +45,14 @@ internal sealed class InfluxStatisticsClient : IDisposable
             .Where(x => x.Abbreviation.ToString() != "SMN")
             .ToDictionary(x => x.ExpArrayIndex, x => x.Abbreviation.ToString());
         _prices = dataManager.GetExcelSheet<Item>()!
+            .AsEnumerable()
             .ToDictionary(x => x.RowId, x => new PriceInfo
             {
                 Name = x.Name.ToString(),
                 Normal = x.PriceLow,
                 UiCategory = x.ItemUICategory.Row,
-            });
+            })
+            .AsReadOnly();
     }
 
     public bool Enabled => _configuration.Server.Enabled &&
@@ -113,7 +117,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
                         foreach (var sub in subs)
                         {
                             values.Add(PointData.Measurement("submersibles")
-                                .Tag("id", fc.CharacterId.ToString())
+                                .Tag("id", fc.CharacterId.ToString(CultureInfo.InvariantCulture))
                                 .Tag("fc_name", fc.Name)
                                 .Tag("sub_id", $"{fc.CharacterId}_{sub.Id}")
                                 .Tag("sub_name", sub.Name)
@@ -133,7 +137,8 @@ internal sealed class InfluxStatisticsClient : IDisposable
                 var writeApi = client.GetWriteApiAsync();
                 await writeApi.WritePointsAsync(
                     values,
-                    _configuration.Server.Bucket, _configuration.Server.Organization);
+                    _configuration.Server.Bucket, _configuration.Server.Organization)
+                    .ConfigureAwait(false);
 
                 _pluginLog.Verbose($"Influx: Sent {values.Count} data points to server");
             }
@@ -155,10 +160,10 @@ internal sealed class InfluxStatisticsClient : IDisposable
                              x.LocalContentId == character.CharacterId && x.IncludeFreeCompany);
 
         Func<string, PointData> pointData = s => PointData.Measurement(s)
-            .Tag("id", character.CharacterId.ToString())
+            .Tag("id", character.CharacterId.ToString(CultureInfo.InvariantCulture))
             .Tag("player_name", character.Name)
             .Tag("type", character.CharacterType.ToString())
-            .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString() : null)
+            .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString(CultureInfo.InvariantCulture) : null)
             .Timestamp(date, WritePrecision.S);
 
         yield return pointData("currency")
@@ -230,9 +235,9 @@ internal sealed class InfluxStatisticsClient : IDisposable
         var owner = update.Currencies.Keys.First(x => x.CharacterId == character.OwnerId);
 
         Func<string, PointData> pointData = s => PointData.Measurement(s)
-            .Tag("id", character.CharacterId.ToString())
+            .Tag("id", character.CharacterId.ToString(CultureInfo.InvariantCulture))
             .Tag("player_name", owner.Name)
-            .Tag("player_id", character.OwnerId.ToString())
+            .Tag("player_id", character.OwnerId.ToString(CultureInfo.InvariantCulture))
             .Tag("type", character.CharacterType.ToString())
             .Tag("retainer_name", character.Name)
             .Timestamp(date, WritePrecision.S);
@@ -280,9 +285,9 @@ internal sealed class InfluxStatisticsClient : IDisposable
 
                 yield return pointData("items")
                     .Tag("filter_name", filterName)
-                    .Tag("item_id", item.Key.ItemId.ToString())
+                    .Tag("item_id", item.Key.ItemId.ToString(CultureInfo.InvariantCulture))
                     .Tag("item_name", priceInfo.Name)
-                    .Tag("hq", (item.Key.IsHq ? 1 : 0).ToString())
+                    .Tag("hq", (item.Key.IsHq ? 1 : 0).ToString(CultureInfo.InvariantCulture))
                     .Field("quantity", item.Sum(x => x.Quantity))
                     .Field("total_gil", item.Sum(x => x.Quantity) * (priceHq ? priceInfo.Hq : priceInfo.Normal));
             }
@@ -295,7 +300,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
         update.FcStats.TryGetValue(character.CharacterId, out FcStats? fcStats);
 
         Func<string, PointData> pointData = s => PointData.Measurement(s)
-            .Tag("id", character.CharacterId.ToString())
+            .Tag("id", character.CharacterId.ToString(CultureInfo.InvariantCulture))
             .Tag("fc_name", character.Name)
             .Tag("type", character.CharacterType.ToString())
             .Timestamp(date, WritePrecision.S);

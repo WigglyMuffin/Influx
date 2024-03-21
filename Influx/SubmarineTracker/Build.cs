@@ -2,21 +2,22 @@
 
 namespace Influx.SubmarineTracker;
 
-public class Build
+internal sealed class Build
 {
     public Build(object @delegate)
     {
-
+        ArgumentNullException.ThrowIfNull(@delegate);
+        Type type = @delegate.GetType();
         HullIdentifier =
-            (string)@delegate.GetType().GetProperty("HullIdentifier")!.GetValue(@delegate)!;
+            (string)type.GetProperty("HullIdentifier")!.GetValue(@delegate)!;
         SternIdentifier =
-            (string)@delegate.GetType().GetProperty("SternIdentifier")!.GetValue(@delegate)!;
+            (string)type.GetProperty("SternIdentifier")!.GetValue(@delegate)!;
         BowIdentifier =
-            (string)@delegate.GetType().GetProperty("BowIdentifier")!.GetValue(@delegate)!;
+            (string)type.GetProperty("BowIdentifier")!.GetValue(@delegate)!;
         BridgeIdentifier =
-            (string)@delegate.GetType().GetProperty("BridgeIdentifier")!.GetValue(@delegate)!;
+            (string)type.GetProperty("BridgeIdentifier")!.GetValue(@delegate)!;
         FullIdentifier =
-            (string)@delegate.GetType().GetMethod("FullIdentifier")!.Invoke(@delegate, Array.Empty<object>())!;
+            (string)type.GetMethod("FullIdentifier")!.Invoke(@delegate, Array.Empty<object>())!;
     }
 
     public string HullIdentifier { get; }

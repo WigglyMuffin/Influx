@@ -15,13 +15,12 @@ internal sealed class AllaganToolsIpc : IDisposable
     private readonly DalamudReflector _dalamudReflector;
     private readonly IFramework _framework;
     private readonly IPluginLog _pluginLog;
-    private readonly ICallGateSubscriber<bool, bool>? _initialized;
-    private readonly ICallGateSubscriber<bool>? _isInitialized;
+    private readonly ICallGateSubscriber<bool, bool> _initialized;
     private readonly ICallGateSubscriber<Dictionary<string, string>> _getSearchFilters;
 
-    public ICharacterMonitor Characters { get; private set; } = new UnavailableCharacterMonitor();
-    public IInventoryMonitor Inventories { get; private set; } = new UnavailableInventoryMonitor();
-    public IFilterService Filters { get; set; } = new UnavailableFilterService();
+    private ICharacterMonitor _characters;
+    private IInventoryMonitor _inventories;
+    private IFilterService _filters;
 
     public AllaganToolsIpc(DalamudPluginInterface pluginInterface, IChatGui chatGui, DalamudReflector dalamudReflector,
         IFramework framework, IPluginLog pluginLog)
@@ -32,14 +31,20 @@ internal sealed class AllaganToolsIpc : IDisposable
         _pluginLog = pluginLog;
 
         _initialized = pluginInterface.GetIpcSubscriber<bool, bool>("AllaganTools.Initialized");
-        _isInitialized = pluginInterface.GetIpcSubscriber<bool>("AllaganTools.IsInitialized");
-        _initialized.Subscribe(ConfigureIpc);
         _getSearchFilters =
             pluginInterface.GetIpcSubscriber<Dictionary<string, string>>("AllaganTools.GetSearchFilters");
 
+        _characters = new UnavailableCharacterMonitor(_pluginLog);
+        _inventories = new UnavailableInventoryMonitor(_pluginLog);
+        _filters = new UnavailableFilterService(_pluginLog);
+
+        _initialized.Subscribe(ConfigureIpc);
+
         try
         {
-            bool isInitialized = _isInitialized.InvokeFunc();
+            ICallGateSubscriber<bool> isInitializedFunc =
+                pluginInterface.GetIpcSubscriber<bool>("AllaganTools.IsInitialized");
+            bool isInitialized = isInitializedFunc.InvokeFunc();
             if (isInitialized)
                 ConfigureIpc(true);
         }
@@ -60,10 +65,10 @@ internal sealed class AllaganToolsIpc : IDisposable
                 {
                     var pluginService = it.GetType().Assembly.GetType("InventoryTools.PluginService")!;
 
-                    Characters = new CharacterMonitor(pluginService.GetProperty("CharacterMonitor")!.GetValue(null)!);
-                    Inventories = new InventoryMonitor(
+                    _characters = new CharacterMonitor(pluginService.GetProperty("CharacterMonitor")!.GetValue(null)!);
+                    _inventories = new InventoryMonitor(
                         pluginService.GetProperty("InventoryMonitor")!.GetValue(null)!);
-                    Filters = new FilterService(pluginService.GetProperty("FilterService")!.GetValue(null)!);
+                    _filters = new FilterService(pluginService.GetProperty("FilterService")!.GetValue(null)!);
                 }
                 else
                 {
@@ -95,7 +100,7 @@ internal sealed class AllaganToolsIpc : IDisposable
     {
         try
         {
-            return Filters.GetFilterByKeyOrName(keyOrName);
+            return _filters.GetFilterByKeyOrName(keyOrName);
         }
         catch (IpcError e)
         {
@@ -106,9 +111,9 @@ internal sealed class AllaganToolsIpc : IDisposable
 
     public Dictionary<Character, Currencies> CountCurrencies()
     {
-        _pluginLog.Debug($"{Characters.GetType()}, {Inventories.GetType()}");
-        var characters = Characters.All.ToDictionary(x => x.CharacterId, x => x);
-        return Inventories.All
+        _pluginLog.Debug($"{_characters.GetType()}, {_inventories.GetType()}");
+        var characters = _characters.All.ToDictionary(x => x.CharacterId, x => x);
+        return _inventories.All
             .Where(x => characters.ContainsKey(x.Value.CharacterId))
             .ToDictionary(
                 x => characters[x.Value.CharacterId],
@@ -130,21 +135,14 @@ internal sealed class AllaganToolsIpc : IDisposable
 
     public void Dispose()
     {
-        _initialized?.Unsubscribe(ConfigureIpc);
-        Characters = new UnavailableCharacterMonitor();
-        Inventories = new UnavailableInventoryMonitor();
-        Filters = new UnavailableFilterService();
+        _initialized.Unsubscribe(ConfigureIpc);
+        _characters = new UnavailableCharacterMonitor(_pluginLog);
+        _inventories = new UnavailableInventoryMonitor(_pluginLog);
+        _filters = new UnavailableFilterService(_pluginLog);
     }
 
-    private sealed class InventoryWrapper
+    private sealed class InventoryWrapper(IEnumerable<InventoryItem> items)
     {
-        private readonly IEnumerable<InventoryItem> _items;
-
-        public InventoryWrapper(IEnumerable<InventoryItem> items)
-        {
-            _items = items;
-        }
-
-        public long Sum(int itemId) => _items.Where(x => x.ItemId == itemId).Sum(x => x.Quantity);
+        public long Sum(int itemId) => items.Where(x => x.ItemId == itemId).Sum(x => x.Quantity);
     }
 }

@@ -18,7 +18,8 @@ using LLib;
 namespace Influx;
 
 [SuppressMessage("ReSharper", "UnusedType.Global")]
-public sealed class InfluxPlugin : IDalamudPlugin
+[SuppressMessage("Performance", "CA1812")]
+internal sealed class InfluxPlugin : IDalamudPlugin
 {
     private readonly object _lock = new();
     private readonly DalamudPluginInterface _pluginInterface;

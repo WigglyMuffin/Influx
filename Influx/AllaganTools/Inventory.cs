@@ -13,6 +13,7 @@ internal sealed class Inventory
 
     public Inventory(object @delegate)
     {
+        ArgumentNullException.ThrowIfNull(@delegate);
         _delegate = @delegate;
         _getAllInventories = _delegate.GetType().GetMethod("GetAllInventories")!;
         CharacterId = (ulong)_delegate.GetType().GetProperty("CharacterId")!.GetValue(_delegate)!;

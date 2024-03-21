@@ -1,6 +1,12 @@
-﻿namespace Influx.AllaganTools;
+﻿using Dalamud.Plugin.Services;
 
-internal sealed class UnavailableFilterService : IFilterService
+namespace Influx.AllaganTools;
+
+internal sealed class UnavailableFilterService(IPluginLog pluginLog) : IFilterService
 {
-    public Filter? GetFilterByKeyOrName(string keyOrName) => null;
+    public Filter? GetFilterByKeyOrName(string keyOrName)
+    {
+        pluginLog.Warning("Filter Service is unavailable");
+        return null;
+    }
 }

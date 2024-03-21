@@ -3,14 +3,14 @@ using Dalamud.Configuration;
 
 namespace Influx;
 
-public sealed class Configuration : IPluginConfiguration
+internal sealed class Configuration : IPluginConfiguration
 {
     public int Version { get; set; } = 1;
 
     public ServerConfiguration Server { get; set; } = new();
 
-    public List<CharacterInfo> IncludedCharacters { get; set; } = new();
-    public List<FilterInfo> IncludedInventoryFilters { get; set; } = new();
+    public IList<CharacterInfo> IncludedCharacters { get; set; } = new List<CharacterInfo>();
+    public IList<FilterInfo> IncludedInventoryFilters { get; set; } = new List<FilterInfo>();
 
     public sealed class ServerConfiguration
     {

@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Dalamud.Plugin;
 using Influx.AllaganTools;
 using LLib;
 
@@ -15,9 +17,10 @@ internal sealed class SubmarineTrackerIpc
         _dalamudReflector = dalamudReflector;
     }
 
+    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope")]
     public Dictionary<Character, List<SubmarineStats>> GetSubmarineStats(List<Character> characters)
     {
-        if (_dalamudReflector.TryGetDalamudPlugin("Submarine Tracker", out var it, false, true))
+        if (_dalamudReflector.TryGetDalamudPlugin("Submarine Tracker", out IDalamudPlugin? it, false, true))
         {
             var submarineData = it.GetType().Assembly.GetType("SubmarineTracker.Data.Submarines");
             var knownSubmarineData = submarineData!.GetField("KnownSubmarines")!;

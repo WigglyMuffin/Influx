@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 
 namespace Influx.AllaganTools;
@@ -10,6 +11,7 @@ internal sealed class Character
 
     public Character(object @delegate)
     {
+        ArgumentNullException.ThrowIfNull(@delegate);
         _delegate = @delegate;
         _name = _delegate.GetType().GetField("Name")!;
         _level = _delegate.GetType().GetField("Level")!;

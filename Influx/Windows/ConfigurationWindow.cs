@@ -19,7 +19,7 @@ internal sealed class ConfigurationWindow : Window
     private readonly Configuration _configuration;
     private readonly AllaganToolsIpc _allaganToolsIpc;
     private string[] _filterNames = Array.Empty<string>();
-    private int _filterIndexToAdd = 0;
+    private int _filterIndexToAdd;
 
     public ConfigurationWindow(DalamudPluginInterface pluginInterface, IClientState clientState,
         Configuration configuration, AllaganToolsIpc allaganToolsIpc)
@@ -44,7 +44,9 @@ internal sealed class ConfigurationWindow : Window
         }
     }
 
-    public override void OnOpen()
+    public override void OnOpen() => RefreshFilters();
+
+    private void RefreshFilters()
     {
         _filterNames = _allaganToolsIpc.GetSearchFilters()
             .Select(x => x.Value)
@@ -125,8 +127,9 @@ internal sealed class ConfigurationWindow : Window
 
                 if (ImGui.Button("Remove inclusion"))
                 {
-                    _configuration.IncludedCharacters.RemoveAll(
-                        c => c.LocalContentId == _clientState.LocalContentId);
+                    var characterInfo =
+                        _configuration.IncludedCharacters.First(c => c.LocalContentId == _clientState.LocalContentId);
+                    _configuration.IncludedCharacters.Remove(characterInfo);
                     Save();
                 }
             }
@@ -221,7 +224,8 @@ internal sealed class ConfigurationWindow : Window
         {
             ImGui.Combo("Add Search Filter", ref _filterIndexToAdd, _filterNames, _filterNames.Length);
 
-            ImGui.BeginDisabled(_configuration.IncludedInventoryFilters.Any(x => x.Name == _filterNames[_filterIndexToAdd]));
+            ImGui.BeginDisabled(
+                _configuration.IncludedInventoryFilters.Any(x => x.Name == _filterNames[_filterIndexToAdd]));
             if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Track Filter"))
             {
                 _configuration.IncludedInventoryFilters.Add(new Configuration.FilterInfo
@@ -238,6 +242,11 @@ internal sealed class ConfigurationWindow : Window
             ImGui.TextColored(ImGuiColors.DalamudRed,
                 "You don't have any search filters, or the AllaganTools integration doesn't work.");
         }
+
+        ImGui.Separator();
+
+        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Sync, "Refresh Filters"))
+            RefreshFilters();
     }
 
     private void Save(bool sendEvent = false)

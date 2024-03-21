@@ -2,21 +2,23 @@
 
 namespace Influx.SubmarineTracker;
 
-public sealed class Submarine
+internal sealed class Submarine
 {
     public Submarine(object @delegate)
     {
-        Name = (string)@delegate.GetType().GetProperty("Name")!.GetValue(@delegate)!;
-        Level = (ushort)@delegate.GetType().GetProperty("Rank")!.GetValue(@delegate)!;
-        Build = new Build(@delegate.GetType().GetProperty("Build")!.GetValue(@delegate)!);
+        ArgumentNullException.ThrowIfNull(@delegate);
+        Type type = @delegate.GetType();
+        Name = (string)type.GetProperty("Name")!.GetValue(@delegate)!;
+        Level = (ushort)type.GetProperty("Rank")!.GetValue(@delegate)!;
+        Build = new Build(type.GetProperty("Build")!.GetValue(@delegate)!);
 
         try
         {
-            (uint predictedLevel, double _) = ((uint, double))@delegate.GetType().GetMethod("PredictExpGrowth")!.Invoke(@delegate, Array.Empty<object?>())!;
+            (uint predictedLevel, double _) = ((uint, double))type.GetMethod("PredictExpGrowth")!.Invoke(@delegate, Array.Empty<object?>())!;
             PredictedLevel = (ushort)predictedLevel;
 
-            bool onVoyage = (bool)@delegate.GetType().GetMethod("IsOnVoyage")!.Invoke(@delegate, Array.Empty<object>())!;
-            bool returned = (bool)@delegate.GetType().GetMethod("IsDone")!.Invoke(@delegate, Array.Empty<object>())!;
+            bool onVoyage = (bool)type.GetMethod("IsOnVoyage")!.Invoke(@delegate, Array.Empty<object>())!;
+            bool returned = (bool)type.GetMethod("IsDone")!.Invoke(@delegate, Array.Empty<object>())!;
             if (onVoyage)
                 State = returned ? EState.Returned : EState.Voyage;
             else

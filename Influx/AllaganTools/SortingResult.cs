@@ -1,10 +1,14 @@
-﻿namespace Influx.AllaganTools;
+﻿using System;
+
+namespace Influx.AllaganTools;
 
 using ItemFlags = FFXIVClientStructs.FFXIV.Client.Game.InventoryItem.ItemFlags;
 internal sealed class SortingResult
 {
     public SortingResult(object @delegate)
     {
+        ArgumentNullException.ThrowIfNull(@delegate);
+
         LocalContentId = (ulong)@delegate.GetType().GetProperty("SourceRetainerId")!.GetValue(@delegate)!;
         Quantity = (int)@delegate.GetType().GetProperty("Quantity")!.GetValue(@delegate)!;
 

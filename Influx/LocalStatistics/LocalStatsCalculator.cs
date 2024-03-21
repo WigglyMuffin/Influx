@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -111,7 +112,7 @@ internal sealed class LocalStatsCalculator : IDisposable
             UpdateStatistics();
     }
 
-    private IReadOnlyList<QuestInfo> PopulateStartingCities(List<QuestInfo> quests, uint envoyQuestId,
+    private static ReadOnlyCollection<QuestInfo> PopulateStartingCities(List<QuestInfo> quests, uint envoyQuestId,
         uint startingQuestId, bool popCallOfTheSea)
     {
         QuestInfo callOfTheSea = quests.First(x => x.PreviousQuestIds.Contains(envoyQuestId));
@@ -119,12 +120,10 @@ internal sealed class LocalStatsCalculator : IDisposable
             quests.Remove(callOfTheSea);
 
         List<QuestInfo> startingCityQuests = new List<QuestInfo> { callOfTheSea };
-        uint? questId = envoyQuestId;
-        QuestInfo? quest;
-
+        uint questId = envoyQuestId;
         do
         {
-            quest = quests.First(x => x.RowId == questId);
+            QuestInfo quest = quests.First(x => x.RowId == questId);
             quests.Remove(quest);
 
             if (quest.Name == "Close to Home")
@@ -133,14 +132,14 @@ internal sealed class LocalStatsCalculator : IDisposable
                 {
                     RowId = startingQuestId,
                     Name = "Coming to ...",
-                    PreviousQuestIds = new(),
+                    PreviousQuestIds = new List<uint>(),
                     Genre = quest.Genre,
                 };
             }
 
             startingCityQuests.Add(quest);
             questId = quest.PreviousQuestIds.FirstOrDefault();
-        } while (questId != null && questId != 0);
+        } while (questId != 0);
 
         return Enumerable.Reverse(startingCityQuests).ToList().AsReadOnly();
     }

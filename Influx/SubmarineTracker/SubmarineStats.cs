@@ -1,6 +1,6 @@
 ﻿namespace Influx.SubmarineTracker;
 
-public sealed class SubmarineStats
+internal sealed class SubmarineStats
 {
     public required string Name { get; init; }
     public required int Id { get; init; }

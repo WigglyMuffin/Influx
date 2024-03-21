@@ -9,7 +9,7 @@ public sealed record LocalStats
     public byte GcRank { get; init; }
     public bool SquadronUnlocked { get; init; }
     public byte MaxLevel { get; init; } = 90;
-    public List<short> ClassJobLevels { get; set; } = new();
+    public IList<short> ClassJobLevels { get; init; } = new List<short>();
     public byte StartingTown { get; init; }
     public int MsqCount { get; set; } = -1;
     public string? MsqName { get; set; }

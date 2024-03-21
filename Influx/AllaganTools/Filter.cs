@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -13,6 +14,7 @@ internal sealed class Filter
 
     public Filter(object @delegate)
     {
+        ArgumentNullException.ThrowIfNull(@delegate);
         _delegate = @delegate;
         _generateFilteredList = _delegate.GetType().GetMethod("GenerateFilteredList")!;
     }

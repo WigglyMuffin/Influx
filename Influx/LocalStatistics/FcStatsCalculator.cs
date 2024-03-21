@@ -16,7 +16,7 @@ using Newtonsoft.Json;
 
 namespace Influx.LocalStatistics;
 
-public class FcStatsCalculator : IDisposable
+internal sealed class FcStatsCalculator : IDisposable
 {
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
@@ -29,7 +29,7 @@ public class FcStatsCalculator : IDisposable
 
     private readonly Dictionary<ulong, FcStats> _cache = new();
 
-    private Status? _status = null;
+    private Status? _status;
 
     public FcStatsCalculator(
         IDalamudPlugin plugin,

@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -12,6 +13,7 @@ internal sealed class InventoryMonitor : IInventoryMonitor
 
     public InventoryMonitor(object @delegate)
     {
+        ArgumentNullException.ThrowIfNull(@delegate);
         _delegate = @delegate;
         _inventories = _delegate.GetType().GetProperty("Inventories")!;
     }
