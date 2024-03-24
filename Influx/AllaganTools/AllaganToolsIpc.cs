@@ -5,6 +5,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Ipc.Exceptions;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using LLib;
 
 namespace Influx.AllaganTools;
@@ -129,6 +130,7 @@ internal sealed class AllaganToolsIpc : IDisposable
                         Ventures = inv.Sum(21072),
                         CeruleumTanks = inv.Sum(10155),
                         RepairKits = inv.Sum(10373),
+                        FreeSlots = inv.FreeInventorySlots,
                     };
                 });
     }
@@ -144,5 +146,7 @@ internal sealed class AllaganToolsIpc : IDisposable
     private sealed class InventoryWrapper(IEnumerable<InventoryItem> items)
     {
         public long Sum(int itemId) => items.Where(x => x.ItemId == itemId).Sum(x => x.Quantity);
+
+        public int FreeInventorySlots => 140 - items.Count(x => x.Category == 1);
     }
 }

@@ -10,4 +10,5 @@ internal struct Currencies
     public long Ventures { get; init; }
     public long CeruleumTanks { get; init; }
     public long RepairKits { get; init; }
+    public int FreeSlots { get; init; }
 }

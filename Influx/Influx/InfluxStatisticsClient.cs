@@ -171,7 +171,8 @@ internal sealed class InfluxStatisticsClient : IDisposable
             .Field("mgp", localStats?.MGP ?? 0)
             .Field("ventures", currencies.Ventures)
             .Field("ceruleum_tanks", currencies.CeruleumTanks)
-            .Field("repair_kits", currencies.RepairKits);
+            .Field("repair_kits", currencies.RepairKits)
+            .Field("free_inventory", currencies.FreeSlots);
 
         if (localStats != null)
         {

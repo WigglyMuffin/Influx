@@ -27,5 +27,6 @@ internal sealed class Inventory
         .SelectMany(x => x.Cast<object?>())
         .Where(x => x != null)
         .Select(x => new InventoryItem(x!))
+        .Where(x => x.ItemId != 0)
         .ToList();
 }
