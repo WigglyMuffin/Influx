@@ -141,7 +141,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
                                 y.LocalContentId == z.CharacterId && z.FreeCompanyId == x.Key.CharacterId)))
                         .ToDictionary(x => x.Key, x => x.Value),
                     InventoryItems = inventoryItems,
-                    Submarines = _submarineTrackerIpc.GetSubmarineStats(characters),
+                    Submarines = UpdateEnabledSubs(_submarineTrackerIpc.GetSubmarineStats(characters), characters),
                     LocalStats = _localStatsCalculator.GetAllCharacterStats()
                         .Where(x => characters.Any(y => y.CharacterId == x.Key))
                         .ToDictionary(x => characters.First(y => y.CharacterId == x.Key), x => x.Value)
@@ -163,6 +163,24 @@ internal sealed class InfluxPlugin : IDalamudPlugin
                 _pluginLog.Error(e, "failed to update statistics");
             }
         }
+    }
+
+    private Dictionary<Character, List<SubmarineStats>> UpdateEnabledSubs(
+        Dictionary<Character, List<SubmarineStats>> allSubs, List<Character> characters)
+    {
+        foreach (var (character, subs) in allSubs)
+        {
+            var owner = characters.FirstOrDefault(x => x.FreeCompanyId == character.CharacterId);
+            if (owner == null)
+                continue;
+
+            var enabledSubs = _fcStatsCalculator.GetEnabledSubs(owner.CharacterId);
+            foreach (var sub in subs)
+                sub.Enabled = enabledSubs.Contains(sub.Name);
+        }
+
+
+        return allSubs;
     }
 
     private void UpdateOnLogout(ConditionFlag flag, bool value)

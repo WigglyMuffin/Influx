@@ -126,9 +126,11 @@ internal sealed class InfluxStatisticsClient : IDisposable
                                 .Tag("part_bow", sub.Bow)
                                 .Tag("part_bridge", sub.Bridge)
                                 .Tag("build", sub.Build)
+                                .Field("enabled", sub.Enabled ? 1 : 0)
                                 .Field("level", sub.Level)
                                 .Field("predicted_level", sub.PredictedLevel)
                                 .Field("state", (int)sub.State)
+                                .Field("return_time", new DateTimeOffset(sub.ReturnTime).ToUnixTimeSeconds())
                                 .Timestamp(date, WritePrecision.S));
                         }
                     }

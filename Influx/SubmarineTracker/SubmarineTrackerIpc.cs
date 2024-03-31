@@ -56,6 +56,7 @@ internal sealed class SubmarineTrackerIpc
                         Bridge = y.Build.BridgeIdentifier,
                         Build = y.Build.FullIdentifier,
                         State = y.State,
+                        ReturnTime = y.ReturnTime,
                     }).ToList());
         }
         else

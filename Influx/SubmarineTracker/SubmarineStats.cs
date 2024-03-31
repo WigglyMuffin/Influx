@@ -1,9 +1,12 @@
-﻿namespace Influx.SubmarineTracker;
+﻿using System;
+
+namespace Influx.SubmarineTracker;
 
 internal sealed class SubmarineStats
 {
     public required string Name { get; init; }
     public required int Id { get; init; }
+    public bool Enabled { get; set; } = true;
     public required ushort Level { get; init; }
     public required ushort PredictedLevel { get; init; }
 
@@ -13,4 +16,5 @@ internal sealed class SubmarineStats
     public required string Bridge { get; init; }
     public required string Build { get; init; }
     public required EState State { get; init; }
+    public required DateTime ReturnTime { get; init; }
 }

@@ -215,6 +215,15 @@ internal sealed class FcStatsCalculator : IDisposable
 
     public IReadOnlyDictionary<ulong, FcStats> GetAllFcStats() => _cache.AsReadOnly();
 
+    public HashSet<string> GetEnabledSubs(ulong characterId)
+    {
+        var offlineCharacterData = _autoRetainerApi.GetOfflineCharacterData(characterId);
+        if (offlineCharacterData == null || !offlineCharacterData.WorkshopEnabled)
+            return [];
+
+        return offlineCharacterData.EnabledSubs;
+    }
+
     public void Dispose()
     {
         _clientState.Logout -= Logout;
