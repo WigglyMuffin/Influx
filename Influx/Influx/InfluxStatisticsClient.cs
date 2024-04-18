@@ -24,7 +24,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
     private readonly IPluginLog _pluginLog;
     private readonly IReadOnlyDictionary<byte, byte> _classJobToArrayIndex;
     private readonly IReadOnlyDictionary<byte, string> _classJobNames;
-    private readonly IReadOnlyDictionary<sbyte, string> _expToJobs;
+    private readonly IReadOnlyDictionary<sbyte, ClassJobDetail> _expToJobs;
     private readonly ReadOnlyDictionary<uint, PriceInfo> _prices;
 
     public InfluxStatisticsClient(IChatGui chatGui, Configuration configuration, IDataManager dataManager,
@@ -40,10 +40,10 @@ internal sealed class InfluxStatisticsClient : IDisposable
             .ToDictionary(x => (byte)x.RowId, x => (byte)x.ExpArrayIndex);
         _classJobNames = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0)
             .ToDictionary(x => (byte)x.RowId, x => x.Abbreviation.ToString());
-        _expToJobs = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0)
-            .Where(x => x.JobIndex > 0)
+        _expToJobs = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0 && !string.IsNullOrEmpty(x.Name))
+            .Where(x => x.JobIndex > 0 || x.DohDolJobIndex >= 0)
             .Where(x => x.Abbreviation.ToString() != "SMN")
-            .ToDictionary(x => x.ExpArrayIndex, x => x.Abbreviation.ToString());
+            .ToDictionary(x => x.ExpArrayIndex, x => new ClassJobDetail(x.Abbreviation.ToString(), x.DohDolJobIndex >= 0));
         _prices = dataManager.GetExcelSheet<Item>()!
             .AsEnumerable()
             .ToDictionary(x => x.RowId, x => new PriceInfo
@@ -207,13 +207,14 @@ internal sealed class InfluxStatisticsClient : IDisposable
 
             if (localStats.ClassJobLevels.Count > 0)
             {
-                foreach (var (expIndex, abbreviation) in _expToJobs)
+                foreach (var (expIndex, job) in _expToJobs)
                 {
                     var level = localStats.ClassJobLevels[expIndex];
                     if (level > 0)
                     {
                         yield return pointData("experience")
-                            .Tag("job", abbreviation)
+                            .Tag("job", job.Abbreviation)
+                            .Tag("job_type", job.Type)
                             .Field("level", level);
                     }
                 }
@@ -329,5 +330,10 @@ internal sealed class InfluxStatisticsClient : IDisposable
         public uint Normal { get; init; }
         public uint Hq => Normal + (uint)Math.Ceiling((decimal)Normal / 10);
         public uint UiCategory { get; set; }
+    }
+
+    private sealed record ClassJobDetail(string Abbreviation, bool IsNonCombat)
+    {
+        public string Type => IsNonCombat ? "doh_dol" : "combat";
     }
 }
