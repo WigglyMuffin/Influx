@@ -48,6 +48,7 @@ internal sealed class SubmarineTrackerIpc
                     {
                         Id = x.Subs.IndexOf(y),
                         Name = y.Name,
+                        WorldId = x.Fc!.WorldId,
                         Level = y.Level,
                         PredictedLevel = y.PredictedLevel,
                         Hull = y.Build.HullIdentifier,

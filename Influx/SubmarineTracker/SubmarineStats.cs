@@ -6,6 +6,7 @@ internal sealed class SubmarineStats
 {
     public required string Name { get; init; }
     public required int Id { get; init; }
+    public required uint WorldId { get; init; }
     public bool Enabled { get; set; } = true;
     public required ushort Level { get; init; }
     public required ushort PredictedLevel { get; init; }

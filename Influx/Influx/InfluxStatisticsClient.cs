@@ -26,6 +26,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
     private readonly IReadOnlyDictionary<byte, string> _classJobNames;
     private readonly IReadOnlyDictionary<sbyte, ClassJobDetail> _expToJobs;
     private readonly ReadOnlyDictionary<uint, PriceInfo> _prices;
+    private readonly ReadOnlyDictionary<uint, string> _worldNames;
 
     public InfluxStatisticsClient(IChatGui chatGui, Configuration configuration, IDataManager dataManager,
         IClientState clientState, IPluginLog pluginLog)
@@ -52,6 +53,10 @@ internal sealed class InfluxStatisticsClient : IDisposable
                 Normal = x.PriceLow,
                 UiCategory = x.ItemUICategory.Row,
             })
+            .AsReadOnly();
+        _worldNames = dataManager.GetExcelSheet<World>()!
+            .Where(x => x.RowId > 0 && x.IsPublic)
+            .ToDictionary(x => x.RowId, x => x.Name.ToString())
             .AsReadOnly();
     }
 
@@ -118,6 +123,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
                         {
                             values.Add(PointData.Measurement("submersibles")
                                 .Tag("id", fc.CharacterId.ToString(CultureInfo.InvariantCulture))
+                                .Tag("world", _worldNames[fc.WorldId])
                                 .Tag("fc_name", fc.Name)
                                 .Tag("sub_id", $"{fc.CharacterId}_{sub.Id}")
                                 .Tag("sub_name", sub.Name)
@@ -164,6 +170,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
         Func<string, PointData> pointData = s => PointData.Measurement(s)
             .Tag("id", character.CharacterId.ToString(CultureInfo.InvariantCulture))
             .Tag("player_name", character.Name)
+            .Tag("world", _worldNames[character.WorldId])
             .Tag("type", character.CharacterType.ToString())
             .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString(CultureInfo.InvariantCulture) : null)
             .Timestamp(date, WritePrecision.S);
@@ -242,6 +249,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
             .Tag("id", character.CharacterId.ToString(CultureInfo.InvariantCulture))
             .Tag("player_name", owner.Name)
             .Tag("player_id", character.OwnerId.ToString(CultureInfo.InvariantCulture))
+            .Tag("world", _worldNames[character.WorldId])
             .Tag("type", character.CharacterType.ToString())
             .Tag("retainer_name", character.Name)
             .Timestamp(date, WritePrecision.S);
@@ -306,6 +314,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
         Func<string, PointData> pointData = s => PointData.Measurement(s)
             .Tag("id", character.CharacterId.ToString(CultureInfo.InvariantCulture))
             .Tag("fc_name", character.Name)
+            .Tag("world", _worldNames[character.WorldId])
             .Tag("type", character.CharacterType.ToString())
             .Timestamp(date, WritePrecision.S);
 

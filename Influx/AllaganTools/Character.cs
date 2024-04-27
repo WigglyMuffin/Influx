@@ -21,6 +21,7 @@ internal sealed class Character
         ClassJob = (byte)_delegate.GetType().GetField("ClassJob")!.GetValue(_delegate)!;
         OwnerId = (ulong)_delegate.GetType().GetField("OwnerId")!.GetValue(_delegate)!;
         FreeCompanyId = (ulong)_delegate.GetType().GetField("FreeCompanyId")!.GetValue(_delegate)!;
+        WorldId = (uint)_delegate.GetType().GetField("WorldId")!.GetValue(_delegate)!;
     }
 
     public ulong CharacterId { get; }
@@ -28,6 +29,7 @@ internal sealed class Character
     public byte ClassJob { get; }
     public ulong OwnerId { get; }
     public ulong FreeCompanyId { get; }
+    public uint WorldId { get; }
     public string Name => (string)_name.GetValue(_delegate)!;
     public uint Level => (uint)_level.GetValue(_delegate)!;
 }
