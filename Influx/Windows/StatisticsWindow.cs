@@ -24,10 +24,10 @@ internal sealed class StatisticsWindow : Window
 
     public override void Draw()
     {
-        if (ImGui.BeginTable("Currencies###InfluxStatisticsCurrencies", 4))
+        if (ImGui.BeginTable("Currencies###InfluxStatisticsCurrencies", 2))
         {
             ImGui.TableSetupColumn("Name");
-            ImGui.TableSetupColumn("Gil");
+            ImGui.TableSetupColumn($"Gil ({_rows.Sum(x => x.Gil):N0})##Gil");
             ImGui.TableHeadersRow();
 
             foreach (var row in _rows)

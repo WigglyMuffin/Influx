@@ -28,8 +28,11 @@ internal sealed class Character
     public CharacterType CharacterType { get; }
     public byte ClassJob { get; }
     public ulong OwnerId { get; }
-    public ulong FreeCompanyId { get; }
+    public ulong FreeCompanyId { get; set; }
     public uint WorldId { get; }
     public string Name => (string)_name.GetValue(_delegate)!;
     public uint Level => (uint)_level.GetValue(_delegate)!;
+
+    public override string ToString() =>
+        $"{nameof(Character)}[{CharacterId}, {(CharacterType == CharacterType.FreeCompanyChest ? "FC" : CharacterType)}, {Name}, {WorldId}]";
 }

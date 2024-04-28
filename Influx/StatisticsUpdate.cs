@@ -9,7 +9,7 @@ internal sealed class StatisticsUpdate
 {
     public required IReadOnlyDictionary<Character, Currencies> Currencies { get; init; }
     public required IReadOnlyDictionary<string, IReadOnlyList<SortingResult>> InventoryItems { get; init; }
-    public required Dictionary<Character, List<SubmarineStats>> Submarines { get; init; }
-    public required Dictionary<Character, LocalStats> LocalStats { get; init; }
-    public required Dictionary<ulong, FcStats> FcStats { get; init; }
+    public required IReadOnlyDictionary<Character, List<SubmarineStats>> Submarines { get; init; }
+    public required IReadOnlyDictionary<Character, LocalStats> LocalStats { get; init; }
+    public required IReadOnlyDictionary<ulong, FcStats> FcStats { get; init; }
 }

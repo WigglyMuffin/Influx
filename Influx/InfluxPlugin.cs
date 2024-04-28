@@ -50,7 +50,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _pluginLog = pluginLog;
         DalamudReflector dalamudReflector = new DalamudReflector(pluginInterface, framework, pluginLog);
         _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, dalamudReflector, framework, _pluginLog);
-        _submarineTrackerIpc = new SubmarineTrackerIpc(dalamudReflector);
+        _submarineTrackerIpc = new SubmarineTrackerIpc(dalamudReflector, chatGui, pluginLog);
         _localStatsCalculator =
             new LocalStatsCalculator(pluginInterface, clientState, addonLifecycle, pluginLog, dataManager);
         _fcStatsCalculator = new FcStatsCalculator(this, pluginInterface, clientState, addonLifecycle, gameGui,
@@ -119,6 +119,17 @@ internal sealed class InfluxPlugin : IDalamudPlugin
                     return;
                 }
 
+                foreach (Character character in characters)
+                {
+                    if (character.CharacterType == CharacterType.Character && character.FreeCompanyId != default)
+                    {
+                        bool isFcEnabled = _configuration.IncludedCharacters
+                            .FirstOrDefault(x => x.LocalContentId == character.CharacterId)?.IncludeFreeCompany ?? true;
+                        if (!isFcEnabled)
+                            character.FreeCompanyId = default;
+                    }
+                }
+
                 Dictionary<string, IReadOnlyList<SortingResult>> inventoryItems =
                     _configuration.IncludedInventoryFilters.Select(c => c.Name)
                         .Distinct()
@@ -165,8 +176,8 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         }
     }
 
-    private Dictionary<Character, List<SubmarineStats>> UpdateEnabledSubs(
-        Dictionary<Character, List<SubmarineStats>> allSubs, List<Character> characters)
+    private IReadOnlyDictionary<Character, List<SubmarineStats>> UpdateEnabledSubs(
+        IReadOnlyDictionary<Character, List<SubmarineStats>> allSubs, List<Character> characters)
     {
         foreach (var (character, subs) in allSubs)
         {
