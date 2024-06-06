@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Ipc.Exceptions;
@@ -21,7 +22,7 @@ internal sealed class AllaganToolsIpc : IDisposable
 
     private ICharacterMonitor _characters;
     private IInventoryMonitor _inventories;
-    private IFilterService _filters;
+    private IListService _lists;
 
     public AllaganToolsIpc(DalamudPluginInterface pluginInterface, IChatGui chatGui, DalamudReflector dalamudReflector,
         IFramework framework, IPluginLog pluginLog)
@@ -37,7 +38,7 @@ internal sealed class AllaganToolsIpc : IDisposable
 
         _characters = new UnavailableCharacterMonitor(_pluginLog);
         _inventories = new UnavailableInventoryMonitor(_pluginLog);
-        _filters = new UnavailableFilterService(_pluginLog);
+        _lists = new UnavailableListService(_pluginLog);
 
         _initialized.Subscribe(ConfigureIpc);
 
@@ -64,12 +65,27 @@ internal sealed class AllaganToolsIpc : IDisposable
             {
                 if (_dalamudReflector.TryGetDalamudPlugin("Allagan Tools", out var it, false, true))
                 {
-                    var pluginService = it.GetType().Assembly.GetType("InventoryTools.PluginService")!;
+                    var pluginLoader = it.GetType()
+                        .GetProperty("PluginLoader", BindingFlags.NonPublic | BindingFlags.Instance)!
+                        .GetValue(it)!;
+                    var host = pluginLoader.GetType().GetProperty("Host")!.GetValue(pluginLoader)!;
+                    var serviceProvider = host.GetType().GetProperty("Services")!.GetValue(host)!;
+                    var getServiceMethod = serviceProvider.GetType().GetMethod("GetService")!;
+                    object GetService(Type t) => getServiceMethod.Invoke(serviceProvider, [t])!;
 
-                    _characters = new CharacterMonitor(pluginService.GetProperty("CharacterMonitor")!.GetValue(null)!);
+                    var ccl = it.GetType()
+                        .GetField("_service", BindingFlags.NonPublic | BindingFlags.Instance)!
+                        .GetValue(it)!
+                        .GetType()
+                        .Assembly;
+
+                    _characters =
+                        new CharacterMonitor(GetService(ccl.GetType("CriticalCommonLib.Services.ICharacterMonitor")!));
                     _inventories = new InventoryMonitor(
-                        pluginService.GetProperty("InventoryMonitor")!.GetValue(null)!);
-                    _filters = new FilterService(pluginService.GetProperty("FilterService")!.GetValue(null)!);
+                        GetService(ccl.GetType("CriticalCommonLib.Services.IInventoryMonitor")!));
+                    _lists = new ListService(
+                        GetService(it.GetType().Assembly.GetType("InventoryTools.Services.Interfaces.IListService")!),
+                        GetService(it.GetType().Assembly.GetType("InventoryTools.Lists.ListFilterService")!));
                 }
                 else
                 {
@@ -97,11 +113,11 @@ internal sealed class AllaganToolsIpc : IDisposable
         }
     }
 
-    public Filter? GetFilter(string keyOrName)
+    public FilterResult? GetFilter(string keyOrName)
     {
         try
         {
-            return _filters.GetFilterByKeyOrName(keyOrName);
+            return _lists.GetFilterByKeyOrName(keyOrName);
         }
         catch (IpcError e)
         {
@@ -140,7 +156,7 @@ internal sealed class AllaganToolsIpc : IDisposable
         _initialized.Unsubscribe(ConfigureIpc);
         _characters = new UnavailableCharacterMonitor(_pluginLog);
         _inventories = new UnavailableInventoryMonitor(_pluginLog);
-        _filters = new UnavailableFilterService(_pluginLog);
+        _lists = new UnavailableListService(_pluginLog);
     }
 
     private sealed class InventoryWrapper(IEnumerable<InventoryItem> items)

@@ -7,23 +7,22 @@ using System.Threading.Tasks;
 
 namespace Influx.AllaganTools;
 
-internal sealed class Filter
+internal sealed class FilterResult
 {
     private readonly object _delegate;
-    private readonly MethodInfo _generateFilteredList;
+    private readonly PropertyInfo _sortedItems;
 
-    public Filter(object @delegate)
+    public FilterResult(object @delegate)
     {
         ArgumentNullException.ThrowIfNull(@delegate);
         _delegate = @delegate;
-        _generateFilteredList = _delegate.GetType().GetMethod("GenerateFilteredList")!;
+        _sortedItems =
+            _delegate.GetType().GetProperty("SortedItems") ?? throw new MissingMemberException();
     }
 
     public IReadOnlyList<SortingResult> GenerateFilteredList()
     {
-        Task task = (Task)_generateFilteredList.Invoke(_delegate, new object?[] { null })!;
-        object result = task.GetType().GetProperty("Result")!.GetValue(task)!;
-        return ((IEnumerable)result.GetType().GetProperty("SortedItems")!.GetValue(result)!)
+        return ((IEnumerable)_sortedItems.GetValue(_delegate)!)
             .Cast<object>()
             .Select(x => new SortingResult(x))
             .ToList();

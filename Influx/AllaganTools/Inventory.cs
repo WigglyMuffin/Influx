@@ -15,7 +15,7 @@ internal sealed class Inventory
     {
         ArgumentNullException.ThrowIfNull(@delegate);
         _delegate = @delegate;
-        _getAllInventories = _delegate.GetType().GetMethod("GetAllInventories")!;
+        _getAllInventories = _delegate.GetType().GetMethod("GetAllInventories") ?? throw new MissingMethodException();
         CharacterId = (ulong)_delegate.GetType().GetProperty("CharacterId")!.GetValue(_delegate)!;
     }
 

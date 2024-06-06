@@ -1,5 +1,5 @@
 ﻿using System;
-using FFXIVClientStructs.FFXIV.Client.Game;
+using Dalamud.Logging;
 
 namespace Influx.AllaganTools;
 
@@ -10,7 +10,7 @@ internal sealed class InventoryItem
         ArgumentNullException.ThrowIfNull(@delegate);
         Category = (int)@delegate.GetType().GetField("SortedCategory")!.GetValue(@delegate)!;
         Container = (int)@delegate.GetType().GetField("SortedContainer")!.GetValue(@delegate)!;
-        ItemId = (uint)@delegate.GetType().GetField("ItemId")!.GetValue(@delegate)!;
+        ItemId = (uint)@delegate.GetType().GetProperty("ItemId")!.GetValue(@delegate)!;
         Quantity = (uint)@delegate.GetType().GetField("Quantity")!.GetValue(@delegate)!;
     }
 

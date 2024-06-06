@@ -2,9 +2,9 @@
 
 namespace Influx.AllaganTools;
 
-internal sealed class UnavailableFilterService(IPluginLog pluginLog) : IFilterService
+internal sealed class UnavailableListService(IPluginLog pluginLog) : IListService
 {
-    public Filter? GetFilterByKeyOrName(string keyOrName)
+    public FilterResult? GetFilterByKeyOrName(string keyOrName)
     {
         pluginLog.Warning("Filter Service is unavailable");
         return null;

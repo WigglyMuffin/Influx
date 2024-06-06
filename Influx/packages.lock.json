@@ -25,9 +25,9 @@
       },
       "Microsoft.Extensions.ObjectPool": {
         "type": "Direct",
-        "requested": "[8.0.3, )",
-        "resolved": "8.0.3",
-        "contentHash": "sk/TGiccSeXUtVeBfFlWJnzp6xLlAxIW+bCHs7uVPLFPQk8vICNmu9Gc3JsKOn6fQuRkrPetQ8EHv4dCiMqhxg=="
+        "requested": "[9.0.0-preview.1.24081.5, )",
+        "resolved": "9.0.0-preview.1.24081.5",
+        "contentHash": "aAR7YW+pUUdvHk3vj7GtAi71dWGDIuY9270lsmQ6lKw23zzY+r8pLP3cGNbJdlnA9VWl+S+gnIVkBCqj2ROlEg=="
       },
       "CsvHelper": {
         "type": "Transitive",

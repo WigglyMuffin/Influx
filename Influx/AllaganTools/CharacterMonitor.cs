@@ -16,8 +16,9 @@ internal sealed class CharacterMonitor : ICharacterMonitor
     {
         ArgumentNullException.ThrowIfNull(@delegate);
         _delegate = @delegate;
-        _getPlayerCharacters = _delegate.GetType().GetMethod("GetPlayerCharacters")!;
-        _allCharacters = _delegate.GetType().GetMethod("AllCharacters")!;
+        _getPlayerCharacters =
+            _delegate.GetType().GetMethod("GetPlayerCharacters") ?? throw new MissingMethodException();
+        _allCharacters = _delegate.GetType().GetMethod("AllCharacters") ?? throw new MissingMethodException();
     }
 
     public IEnumerable<Character> PlayerCharacters => GetCharactersInternal(_getPlayerCharacters);

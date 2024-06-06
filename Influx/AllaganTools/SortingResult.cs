@@ -13,7 +13,7 @@ internal sealed class SortingResult
         Quantity = (int)@delegate.GetType().GetProperty("Quantity")!.GetValue(@delegate)!;
 
         var inventoryItem = @delegate.GetType().GetProperty("InventoryItem")!.GetValue(@delegate)!;
-        ItemId = (uint)inventoryItem.GetType().GetField("ItemId")!.GetValue(inventoryItem)!;
+        ItemId = (uint)inventoryItem.GetType().GetProperty("ItemId")!.GetValue(inventoryItem)!;
         Flags = (ItemFlags)inventoryItem.GetType().GetField("Flags")!.GetValue(inventoryItem)!;
     }
 
