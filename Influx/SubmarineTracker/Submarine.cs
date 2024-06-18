@@ -8,9 +8,11 @@ internal sealed class Submarine
     {
         ArgumentNullException.ThrowIfNull(@delegate);
         Type type = @delegate.GetType();
-        Name = (string)type.GetProperty("Name")!.GetValue(@delegate)!;
-        Level = (ushort)type.GetProperty("Rank")!.GetValue(@delegate)!;
+        FreeCompanyId = (ulong)type.GetField("FreeCompanyId")!.GetValue(@delegate)!;
+        Name = (string)type.GetField("Name")!.GetValue(@delegate)!;
+        Level = (ushort)type.GetField("Rank")!.GetValue(@delegate)!;
         Build = new Build(type.GetProperty("Build")!.GetValue(@delegate)!);
+        ReturnTime = (DateTime)type.GetField("ReturnTime")!.GetValue(@delegate)!;
 
         try
         {
@@ -28,8 +30,6 @@ internal sealed class Submarine
                 (uint predictedLevel, double _) = ((uint, double))type.GetMethod("PredictExpGrowth")!.Invoke(@delegate, Array.Empty<object?>())!;
                 PredictedLevel = (ushort)predictedLevel;
             }
-
-            ReturnTime = (DateTime)type.GetField("ReturnTime")!.GetValue(@delegate)!;
         }
         catch (Exception)
         {
@@ -37,6 +37,7 @@ internal sealed class Submarine
         }
     }
 
+    public ulong FreeCompanyId { get; }
     public string Name { get; }
     public ushort Level { get; }
     public ushort PredictedLevel { get; }

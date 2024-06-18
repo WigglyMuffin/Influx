@@ -50,7 +50,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _pluginLog = pluginLog;
         DalamudReflector dalamudReflector = new DalamudReflector(pluginInterface, framework, pluginLog);
         _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, dalamudReflector, framework, _pluginLog);
-        _submarineTrackerIpc = new SubmarineTrackerIpc(dalamudReflector, chatGui, pluginLog);
+        _submarineTrackerIpc = new SubmarineTrackerIpc(dalamudReflector);
         _localStatsCalculator =
             new LocalStatsCalculator(pluginInterface, clientState, addonLifecycle, pluginLog, dataManager);
         _fcStatsCalculator = new FcStatsCalculator(this, pluginInterface, clientState, addonLifecycle, gameGui,
