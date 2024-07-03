@@ -216,6 +216,10 @@ internal sealed class InfluxStatisticsClient : IDisposable
             {
                 foreach (var (expIndex, job) in _expToJobs)
                 {
+                    // last update to this char was in 6.x, so we don't have PCT/VPR data
+                    if (localStats.ClassJobLevels.Count <= expIndex)
+                        continue;
+
                     var level = localStats.ClassJobLevels[expIndex];
                     if (level > 0)
                     {

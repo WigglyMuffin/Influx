@@ -24,7 +24,7 @@ internal sealed class AllaganToolsIpc : IDisposable
     private IInventoryMonitor _inventories;
     private IListService _lists;
 
-    public AllaganToolsIpc(DalamudPluginInterface pluginInterface, IChatGui chatGui, DalamudReflector dalamudReflector,
+    public AllaganToolsIpc(IDalamudPluginInterface pluginInterface, IChatGui chatGui, DalamudReflector dalamudReflector,
         IFramework framework, IPluginLog pluginLog)
     {
         _chatGui = chatGui;

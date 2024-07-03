@@ -27,7 +27,7 @@ internal sealed class LocalStatsCalculator : IDisposable
 
     private const uint JointQuest = 65781;
 
-    private readonly DalamudPluginInterface _pluginInterface;
+    private readonly IDalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
     private readonly IAddonLifecycle _addonLifecycle;
     private readonly IPluginLog _pluginLog;
@@ -40,7 +40,7 @@ internal sealed class LocalStatsCalculator : IDisposable
 
 
     public LocalStatsCalculator(
-        DalamudPluginInterface pluginInterface,
+        IDalamudPluginInterface pluginInterface,
         IClientState clientState,
         IAddonLifecycle addonLifecycle,
         IPluginLog pluginLog,
@@ -58,11 +58,9 @@ internal sealed class LocalStatsCalculator : IDisposable
         Task.Run(() =>
         {
             List<QuestInfo> msq = new();
-            foreach (var quest in dataManager.GetExcelSheet<Quest>()!.Where(x => x.JournalGenre.Row is >= 1 and <= 12))
+            foreach (var quest in dataManager.GetExcelSheet<Quest>()!.Where(x => x.JournalGenre.Row is >= 1 and <= 13))
             {
                 var previousQuests = quest.PreviousQuest?.Select(x => x.Row).Where(x => x != 0).ToList();
-                if (previousQuests != null && quest.Unknown12 != 0)
-                    previousQuests.Add(quest.Unknown12);
 
                 msq.Add(new QuestInfo
                 {
@@ -248,8 +246,8 @@ internal sealed class LocalStatsCalculator : IDisposable
     private unsafe List<short> ExtractClassJobLevels(PlayerState* playerState)
     {
         List<short> levels = new();
-        for (int i = 0; i < 30; ++i)
-            levels.Add(playerState->ClassJobLevelArray[i]);
+        for (int i = 0; i < 32; ++i)
+            levels.Add(playerState->ClassJobLevels[i]);
         return levels;
     }
 

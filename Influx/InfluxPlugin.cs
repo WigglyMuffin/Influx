@@ -22,7 +22,7 @@ namespace Influx;
 internal sealed class InfluxPlugin : IDalamudPlugin
 {
     private readonly object _lock = new();
-    private readonly DalamudPluginInterface _pluginInterface;
+    private readonly IDalamudPluginInterface _pluginInterface;
     private readonly Configuration _configuration;
     private readonly IClientState _clientState;
     private readonly ICommandManager _commandManager;
@@ -38,7 +38,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
     private readonly ConfigurationWindow _configurationWindow;
     private readonly Timer _timer;
 
-    public InfluxPlugin(DalamudPluginInterface pluginInterface, IClientState clientState, IPluginLog pluginLog,
+    public InfluxPlugin(IDalamudPluginInterface pluginInterface, IClientState clientState, IPluginLog pluginLog,
         ICommandManager commandManager, IChatGui chatGui, IDataManager dataManager, IFramework framework,
         IAddonLifecycle addonLifecycle, IGameGui gameGui, ICondition condition)
     {

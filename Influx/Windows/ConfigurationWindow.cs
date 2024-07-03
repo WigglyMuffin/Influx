@@ -14,14 +14,14 @@ namespace Influx.Windows;
 
 internal sealed class ConfigurationWindow : Window
 {
-    private readonly DalamudPluginInterface _pluginInterface;
+    private readonly IDalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
     private readonly Configuration _configuration;
     private readonly AllaganToolsIpc _allaganToolsIpc;
-    private string[] _filterNames = Array.Empty<string>();
+    private string[] _filterNames = [];
     private int _filterIndexToAdd;
 
-    public ConfigurationWindow(DalamudPluginInterface pluginInterface, IClientState clientState,
+    public ConfigurationWindow(IDalamudPluginInterface pluginInterface, IClientState clientState,
         Configuration configuration, AllaganToolsIpc allaganToolsIpc)
         : base("Configuration###InfluxConfiguration")
     {

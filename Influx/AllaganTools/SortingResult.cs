@@ -22,7 +22,7 @@ internal sealed class SortingResult
     public ItemFlags Flags { get; }
     public int Quantity { get; }
 
-    public bool IsHq => Flags.HasFlag(ItemFlags.HQ);
+    public bool IsHq => Flags.HasFlag(ItemFlags.HighQuality);
 
     public override string ToString()
     {

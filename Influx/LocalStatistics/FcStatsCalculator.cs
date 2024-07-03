@@ -18,7 +18,7 @@ namespace Influx.LocalStatistics;
 
 internal sealed class FcStatsCalculator : IDisposable
 {
-    private readonly DalamudPluginInterface _pluginInterface;
+    private readonly IDalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
     private readonly IAddonLifecycle _addonLifecycle;
     private readonly IGameGui _gameGui;
@@ -33,7 +33,7 @@ internal sealed class FcStatsCalculator : IDisposable
 
     public FcStatsCalculator(
         IDalamudPlugin plugin,
-        DalamudPluginInterface pluginInterface,
+        IDalamudPluginInterface pluginInterface,
         IClientState clientState,
         IAddonLifecycle addonLifecycle,
         IGameGui gameGui,
@@ -86,9 +86,9 @@ internal sealed class FcStatsCalculator : IDisposable
         if (infoProxy != null)
         {
             var fcProxy = (InfoProxyFreeCompany*)infoProxy;
-            if (fcProxy->ID != 0)
+            if (fcProxy->Id != 0)
             {
-                _pluginLog.Information($"Requesting post-process, FC is {fcProxy->ID}");
+                _pluginLog.Information($"Requesting post-process, FC is {fcProxy->Id}");
                 _autoRetainerApi.RequestCharacterPostprocess();
             }
             else
@@ -157,10 +157,10 @@ internal sealed class FcStatsCalculator : IDisposable
             if (infoProxy != null)
             {
                 var fcProxy = (InfoProxyFreeCompany*)infoProxy;
-                ulong localContentId = fcProxy->ID;
+                ulong localContentId = fcProxy->Id;
                 if (localContentId != 0)
                 {
-                    var atkArrays = Framework.Instance()->GetUiModule()->GetRaptureAtkModule()->AtkModule
+                    var atkArrays = Framework.Instance()->GetUIModule()->GetRaptureAtkModule()->AtkModule
                         .AtkArrayDataHolder;
                     if (atkArrays.NumberArrayCount > 50)
                     {
