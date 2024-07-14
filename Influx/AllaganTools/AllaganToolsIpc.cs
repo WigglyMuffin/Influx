@@ -65,10 +65,8 @@ internal sealed class AllaganToolsIpc : IDisposable
             {
                 if (_dalamudReflector.TryGetDalamudPlugin("Allagan Tools", out var it, false, true))
                 {
-                    var pluginLoader = it.GetType()
-                        .GetProperty("PluginLoader", BindingFlags.NonPublic | BindingFlags.Instance)!
-                        .GetValue(it)!;
-                    var host = pluginLoader.GetType().GetProperty("Host")!.GetValue(pluginLoader)!;
+                    var hostedPlugin = it.GetType().BaseType!;
+                    var host = hostedPlugin.GetField("host", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(it)!;
                     var serviceProvider = host.GetType().GetProperty("Services")!.GetValue(host)!;
                     var getServiceMethod = serviceProvider.GetType().GetMethod("GetService")!;
                     object GetService(Type t) => getServiceMethod.Invoke(serviceProvider, [t])!;
@@ -128,7 +126,7 @@ internal sealed class AllaganToolsIpc : IDisposable
 
     public Dictionary<Character, Currencies> CountCurrencies()
     {
-        _pluginLog.Debug($"{_characters.GetType()}, {_inventories.GetType()}");
+        _pluginLog.Verbose($"Updating characters with {_characters.GetType()} and {_inventories.GetType()}");
         var characters = _characters.All.ToDictionary(x => x.CharacterId, x => x);
         return _inventories.All
             .Where(x => characters.ContainsKey(x.Value.CharacterId))
