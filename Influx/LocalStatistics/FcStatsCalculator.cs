@@ -162,9 +162,9 @@ internal sealed class FcStatsCalculator : IDisposable
                 {
                     var atkArrays = Framework.Instance()->GetUIModule()->GetRaptureAtkModule()->AtkModule
                         .AtkArrayDataHolder;
-                    if (atkArrays.NumberArrayCount > 50)
+                    if (atkArrays.NumberArrayCount > 51)
                     {
-                        var fcArrayData = atkArrays.GetNumberArrayData(50);
+                        var fcArrayData = atkArrays.GetNumberArrayData(51);
                         FcStats fcStats = new FcStats
                         {
                             ContentId = localContentId,
