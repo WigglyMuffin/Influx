@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Reflection;
 
 namespace Influx.AllaganTools;
@@ -23,6 +24,6 @@ internal sealed class ListService : IListService
     public FilterResult? GetFilterByKeyOrName(string keyOrName)
     {
         var f = _getListByKeyOrName.Invoke(_listService, [keyOrName]);
-        return f != null ? new FilterResult(_refreshList.Invoke(_listFilterService, [f])!) : null;
+        return f != null ? new FilterResult((IEnumerable)_refreshList.Invoke(_listFilterService, [f])!) : null;
     }
 }
