@@ -103,11 +103,11 @@ internal sealed class ConfigurationWindow : Window
         if (!tabItem)
             return;
 
-        if (_clientState is { IsLoggedIn: true, LocalContentId: > 0, LocalPlayer.HomeWorld: not null })
+        if (_clientState is { IsLoggedIn: true, LocalContentId: > 0, LocalPlayer.HomeWorld.RowId: > 0 })
         {
-            string worldName = _clientState.LocalPlayer?.HomeWorld.GameData?.Name ?? "??";
+            string worldName = _clientState.LocalPlayer.HomeWorld.Value.Name.ToString();
             ImGui.TextWrapped(
-                $"Current Character: {_clientState.LocalPlayer?.Name} @ {worldName} ({_clientState.LocalContentId:X})");
+                $"Current Character: {_clientState.LocalPlayer.Name} @ {worldName} ({_clientState.LocalContentId:X})");
 
             ImGui.Indent(30);
             Configuration.CharacterInfo? includedCharacter =

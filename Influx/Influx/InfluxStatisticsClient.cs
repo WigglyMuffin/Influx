@@ -10,7 +10,7 @@ using Influx.LocalStatistics;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Writes;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using GrandCompany = FFXIVClientStructs.FFXIV.Client.UI.Agent.GrandCompany;
 
 namespace Influx.Influx;
@@ -37,24 +37,24 @@ internal sealed class InfluxStatisticsClient : IDisposable
         _pluginLog = pluginLog;
         UpdateClient();
 
-        _classJobToArrayIndex = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0)
+        _classJobToArrayIndex = dataManager.GetExcelSheet<ClassJob>().Where(x => x.RowId > 0)
             .ToDictionary(x => (byte)x.RowId, x => (byte)x.ExpArrayIndex);
-        _classJobNames = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0)
+        _classJobNames = dataManager.GetExcelSheet<ClassJob>().Where(x => x.RowId > 0)
             .ToDictionary(x => (byte)x.RowId, x => x.Abbreviation.ToString());
-        _expToJobs = dataManager.GetExcelSheet<ClassJob>()!.Where(x => x.RowId > 0 && !string.IsNullOrEmpty(x.Name))
+        _expToJobs = dataManager.GetExcelSheet<ClassJob>().Where(x => x.RowId > 0 && !string.IsNullOrEmpty(x.Name.ToString()))
             .Where(x => x.JobIndex > 0 || x.DohDolJobIndex >= 0)
             .Where(x => x.Abbreviation.ToString() != "SMN")
             .ToDictionary(x => x.ExpArrayIndex, x => new ClassJobDetail(x.Abbreviation.ToString(), x.DohDolJobIndex >= 0));
-        _prices = dataManager.GetExcelSheet<Item>()!
+        _prices = dataManager.GetExcelSheet<Item>()
             .AsEnumerable()
             .ToDictionary(x => x.RowId, x => new PriceInfo
             {
                 Name = x.Name.ToString(),
                 Normal = x.PriceLow,
-                UiCategory = x.ItemUICategory.Row,
+                UiCategory = x.ItemUICategory.RowId,
             })
             .AsReadOnly();
-        _worldNames = dataManager.GetExcelSheet<World>()!
+        _worldNames = dataManager.GetExcelSheet<World>()
             .Where(x => x.RowId > 0 && x.IsPublic)
             .ToDictionary(x => x.RowId, x => x.Name.ToString())
             .AsReadOnly();

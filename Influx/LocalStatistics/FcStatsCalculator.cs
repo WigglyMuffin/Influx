@@ -140,7 +140,7 @@ internal sealed class FcStatsCalculator : IDisposable
         }
     }
 
-    private void Logout()
+    private void Logout(int type, int code)
     {
         if (_status != null)
             _autoRetainerApi.FinishCharacterPostProcess();

@@ -10,7 +10,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using Newtonsoft.Json;
 
 namespace Influx.LocalStatistics;
@@ -58,16 +58,16 @@ internal sealed class LocalStatsCalculator : IDisposable
         Task.Run(() =>
         {
             List<QuestInfo> msq = new();
-            foreach (var quest in dataManager.GetExcelSheet<Quest>()!.Where(x => x.JournalGenre.Row is >= 1 and <= 13))
+            foreach (var quest in dataManager.GetExcelSheet<Quest>().Where(x => x.JournalGenre.RowId is >= 1 and <= 14)) // 14 = Post-Dawntrail
             {
-                var previousQuests = quest.PreviousQuest?.Select(x => x.Row).Where(x => x != 0).ToList();
+                var previousQuests = quest.PreviousQuest.Select(x => x.RowId).Where(x => x != 0).ToList();
 
                 msq.Add(new QuestInfo
                 {
                     RowId = quest.RowId,
                     Name = quest.Name.ToString(),
-                    PreviousQuestIds = previousQuests ?? new(),
-                    Genre = quest.JournalGenre.Row,
+                    PreviousQuestIds = previousQuests,
+                    Genre = quest.JournalGenre.RowId,
                 });
             }
 
