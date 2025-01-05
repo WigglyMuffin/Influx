@@ -8,6 +8,7 @@ using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using ECommons;
 using Influx.AllaganTools;
 using Influx.Influx;
 using Influx.LocalStatistics;
@@ -65,7 +66,15 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _configurationWindow.ConfigUpdated += (_, _) => _influxStatisticsClient.UpdateClient();
         _windowSystem.AddWindow(_configurationWindow);
 
-        _commandManager.AddHandler("/influx", new CommandInfo(ProcessCommand));
+        _commandManager.AddHandler("/influx", new CommandInfo(ProcessCommand)
+        {
+            HelpMessage = "Opens influx configuration"
+        });
+
+        _commandManager.AddHandler("/influx gil", new CommandInfo(ProcessCommand)
+        {
+            HelpMessage = "Opens influx statistics"
+        });
 
         _timer = new Timer(TimeSpan.FromMinutes(1));
         _timer.Elapsed += (_, _) => UpdateStatistics();
@@ -74,6 +83,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
 
         _pluginInterface.UiBuilder.Draw += _windowSystem.Draw;
         _pluginInterface.UiBuilder.OpenConfigUi += _configurationWindow.Toggle;
+        _pluginInterface.UiBuilder.OpenMainUi += _statisticsWindow.Toggle;
         _condition.ConditionChange += UpdateOnLogout;
     }
 
@@ -220,6 +230,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _timer.Dispose();
         _windowSystem.RemoveAllWindows();
         _commandManager.RemoveHandler("/influx");
+        _commandManager.RemoveHandler("/influx gil");
         _influxStatisticsClient.Dispose();
         _fcStatsCalculator.Dispose();
         _localStatsCalculator.Dispose();

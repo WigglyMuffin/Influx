@@ -8,6 +8,7 @@ internal sealed class Configuration : IPluginConfiguration
     public int Version { get; set; } = 1;
 
     public ServerConfiguration Server { get; set; } = new();
+    public bool AutoEnrollCharacters { get; set; }
 
     public IList<CharacterInfo> IncludedCharacters { get; set; } = new List<CharacterInfo>();
     public IList<FilterInfo> IncludedInventoryFilters { get; set; } = new List<FilterInfo>();

@@ -103,6 +103,12 @@ internal sealed class ConfigurationWindow : Window
         if (!tabItem)
             return;
 
+        var refIncludeAll = _configuration.AutoEnrollCharacters;
+        if (ImGui.Checkbox("Auto enroll characters", ref refIncludeAll))
+        {
+            _configuration.AutoEnrollCharacters = refIncludeAll;
+        }
+
         if (_clientState is { IsLoggedIn: true, LocalContentId: > 0, LocalPlayer.HomeWorld.RowId: > 0 })
         {
             string worldName = _clientState.LocalPlayer.HomeWorld.Value.Name.ToString();
@@ -135,9 +141,7 @@ internal sealed class ConfigurationWindow : Window
             }
             else
             {
-                ImGui.TextColored(ImGuiColors.DalamudRed,
-                    "This character is currently excluded.");
-                if (ImGui.Button("Include current character"))
+                if (_configuration.AutoEnrollCharacters)
                 {
                     _configuration.IncludedCharacters.Add(new Configuration.CharacterInfo
                     {
@@ -146,6 +150,21 @@ internal sealed class ConfigurationWindow : Window
                         CachedWorldName = worldName,
                     });
                     Save();
+                }
+                else
+                {
+                    ImGui.TextColored(ImGuiColors.DalamudRed,
+                        "This character is currently excluded.");
+                    if (ImGui.Button("Include current character"))
+                    {
+                        _configuration.IncludedCharacters.Add(new Configuration.CharacterInfo
+                        {
+                            LocalContentId = _clientState.LocalContentId,
+                            CachedPlayerName = _clientState.LocalPlayer?.Name.ToString() ?? "??",
+                            CachedWorldName = worldName,
+                        });
+                        Save();
+                    }
                 }
             }
 
