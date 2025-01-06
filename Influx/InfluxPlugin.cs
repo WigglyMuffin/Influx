@@ -85,6 +85,8 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _pluginInterface.UiBuilder.OpenConfigUi += _configurationWindow.Toggle;
         _pluginInterface.UiBuilder.OpenMainUi += _statisticsWindow.Toggle;
         _condition.ConditionChange += UpdateOnLogout;
+        _clientState.Login += AutoEnrollCharacter;
+        
     }
 
     private Configuration LoadConfig()
@@ -203,6 +205,22 @@ internal sealed class InfluxPlugin : IDalamudPlugin
 
         return allSubs;
     }
+
+
+    private void AutoEnrollCharacter()
+    {
+        if (_configuration.AutoEnrollCharacters)
+        {
+            _configuration.IncludedCharacters.Add(new Configuration.CharacterInfo
+            {
+                LocalContentId = _clientState.LocalContentId,
+                CachedPlayerName = _clientState.LocalPlayer?.Name.ToString() ?? "??",
+                CachedWorldName = _clientState.LocalPlayer?.HomeWorld.Value.Name.ToString(),
+            });
+            _pluginInterface.SavePluginConfig(_configuration);
+        }
+    }
+
 
     private void UpdateOnLogout(ConditionFlag flag, bool value)
     {

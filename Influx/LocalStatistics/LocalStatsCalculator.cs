@@ -243,6 +243,8 @@ internal sealed class LocalStatsCalculator : IDisposable
         }
     }
 
+
+
     private unsafe List<short> ExtractClassJobLevels(PlayerState* playerState)
     {
         List<short> levels = new();
