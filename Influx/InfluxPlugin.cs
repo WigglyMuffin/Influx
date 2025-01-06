@@ -253,5 +253,6 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _fcStatsCalculator.Dispose();
         _localStatsCalculator.Dispose();
         _allaganToolsIpc.Dispose();
+        _clientState.Login -= AutoEnrollCharacter;
     }
 }
