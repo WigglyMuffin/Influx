@@ -68,12 +68,10 @@ internal sealed class InfluxPlugin : IDalamudPlugin
 
         _commandManager.AddHandler("/influx", new CommandInfo(ProcessCommand)
         {
-            HelpMessage = "Opens influx configuration"
-        });
-
-        _commandManager.AddHandler("/influx gil", new CommandInfo(ProcessCommand)
-        {
-            HelpMessage = "Opens influx statistics"
+            HelpMessage = """
+            Opens influx configuration
+            /influx gil - Opens influx statistics
+            """
         });
 
         _timer = new Timer(TimeSpan.FromMinutes(1));
