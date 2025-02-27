@@ -103,6 +103,13 @@ internal sealed class ConfigurationWindow : Window
         if (!tabItem)
             return;
 
+        var refIncludeAll = _configuration.AutoEnrollCharacters;
+        if (ImGui.Checkbox("Auto enroll characters on login", ref refIncludeAll))
+        {
+            _configuration.AutoEnrollCharacters = refIncludeAll;
+            Save(true);
+        }
+
         if (_clientState is { IsLoggedIn: true, LocalContentId: > 0, LocalPlayer.HomeWorld.RowId: > 0 })
         {
             string worldName = _clientState.LocalPlayer.HomeWorld.Value.Name.ToString();
