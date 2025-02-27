@@ -209,13 +209,19 @@ internal sealed class InfluxPlugin : IDalamudPlugin
     {
         if (_configuration.AutoEnrollCharacters)
         {
-            _configuration.IncludedCharacters.Add(new Configuration.CharacterInfo
+            Configuration.CharacterInfo? includedCharacter =
+                _configuration.IncludedCharacters.FirstOrDefault(x => x.LocalContentId == _clientState.LocalContentId);
+
+            if (includedCharacter == null)
             {
-                LocalContentId = _clientState.LocalContentId,
-                CachedPlayerName = _clientState.LocalPlayer?.Name.ToString() ?? "??",
-                CachedWorldName = _clientState.LocalPlayer?.HomeWorld.Value.Name.ToString(),
-            });
-            _pluginInterface.SavePluginConfig(_configuration);
+                _configuration.IncludedCharacters.Add(new Configuration.CharacterInfo
+                {
+                    LocalContentId = _clientState.LocalContentId,
+                    CachedPlayerName = _clientState.LocalPlayer?.Name.ToString() ?? "??",
+                    CachedWorldName = _clientState.LocalPlayer?.HomeWorld.Value.Name.ToString(),
+                });
+                _pluginInterface.SavePluginConfig(_configuration);
+            }
         }
     }
 
@@ -246,7 +252,6 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _timer.Dispose();
         _windowSystem.RemoveAllWindows();
         _commandManager.RemoveHandler("/influx");
-        _commandManager.RemoveHandler("/influx gil");
         _influxStatisticsClient.Dispose();
         _fcStatsCalculator.Dispose();
         _localStatsCalculator.Dispose();
