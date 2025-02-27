@@ -245,7 +245,9 @@ internal sealed class InfluxPlugin : IDalamudPlugin
 
     public void Dispose()
     {
+        _clientState.Login -= AutoEnrollCharacter;
         _condition.ConditionChange -= UpdateOnLogout;
+        _pluginInterface.UiBuilder.OpenMainUi -= _statisticsWindow.Toggle;
         _pluginInterface.UiBuilder.OpenConfigUi -= _configurationWindow.Toggle;
         _pluginInterface.UiBuilder.Draw -= _windowSystem.Draw;
         _timer.Stop();
@@ -256,6 +258,5 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _fcStatsCalculator.Dispose();
         _localStatsCalculator.Dispose();
         _allaganToolsIpc.Dispose();
-        _clientState.Login -= AutoEnrollCharacter;
     }
 }
