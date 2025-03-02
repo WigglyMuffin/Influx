@@ -71,11 +71,9 @@ internal sealed class AllaganToolsIpc : IDisposable
                     var getServiceMethod = serviceProvider.GetType().GetMethod("GetService")!;
                     object GetService(Type t) => getServiceMethod.Invoke(serviceProvider, [t])!;
 
-                    var ccl = it.GetType()
-                        .GetField("_service", BindingFlags.NonPublic | BindingFlags.Instance)!
-                        .GetValue(it)!
-                        .GetType()
-                        .Assembly;
+                    var cclName = it.GetType().Assembly.GetReferencedAssemblies().First(aN => aN.Name == "CriticalCommonLib")!;
+
+                    var ccl = AppDomain.CurrentDomain.GetAssemblies().First(a => a.FullName == cclName.FullName)!;
 
                     _characters =
                         new CharacterMonitor(GetService(ccl.GetType("CriticalCommonLib.Services.ICharacterMonitor")!));
