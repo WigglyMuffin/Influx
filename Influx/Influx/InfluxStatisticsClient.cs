@@ -22,9 +22,9 @@ internal sealed class InfluxStatisticsClient : IDisposable
     private readonly Configuration _configuration;
     private readonly IClientState _clientState;
     private readonly IPluginLog _pluginLog;
-    private readonly IReadOnlyDictionary<byte, byte> _classJobToArrayIndex;
-    private readonly IReadOnlyDictionary<byte, string> _classJobNames;
-    private readonly IReadOnlyDictionary<sbyte, ClassJobDetail> _expToJobs;
+    private readonly ReadOnlyDictionary<byte, byte> _classJobToArrayIndex;
+    private readonly ReadOnlyDictionary<byte, string> _classJobNames;
+    private readonly ReadOnlyDictionary<sbyte, ClassJobDetail> _expToJobs;
     private readonly ReadOnlyDictionary<uint, PriceInfo> _prices;
     private readonly ReadOnlyDictionary<uint, string> _worldNames;
 
@@ -38,13 +38,16 @@ internal sealed class InfluxStatisticsClient : IDisposable
         UpdateClient();
 
         _classJobToArrayIndex = dataManager.GetExcelSheet<ClassJob>().Where(x => x.RowId > 0)
-            .ToDictionary(x => (byte)x.RowId, x => (byte)x.ExpArrayIndex);
+            .ToDictionary(x => (byte)x.RowId, x => (byte)x.ExpArrayIndex)
+            .AsReadOnly();
         _classJobNames = dataManager.GetExcelSheet<ClassJob>().Where(x => x.RowId > 0)
-            .ToDictionary(x => (byte)x.RowId, x => x.Abbreviation.ToString());
+            .ToDictionary(x => (byte)x.RowId, x => x.Abbreviation.ToString())
+            .AsReadOnly();
         _expToJobs = dataManager.GetExcelSheet<ClassJob>().Where(x => x.RowId > 0 && !string.IsNullOrEmpty(x.Name.ToString()))
             .Where(x => x.JobIndex > 0 || x.DohDolJobIndex >= 0)
             .Where(x => x.Abbreviation.ToString() != "SMN")
-            .ToDictionary(x => x.ExpArrayIndex, x => new ClassJobDetail(x.Abbreviation.ToString(), x.DohDolJobIndex >= 0));
+            .ToDictionary(x => x.ExpArrayIndex, x => new ClassJobDetail(x.Abbreviation.ToString(), x.DohDolJobIndex >= 0))
+            .AsReadOnly();
         _prices = dataManager.GetExcelSheet<Item>()
             .AsEnumerable()
             .ToDictionary(x => x.RowId, x => new PriceInfo
