@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Linq;
+using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
@@ -12,7 +15,7 @@ using Influx.AllaganTools;
 
 namespace Influx.Windows;
 
-internal sealed class ConfigurationWindow : Window
+internal sealed class ConfigurationWindow : Window, IDisposable
 {
     private readonly IDalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
@@ -20,6 +23,8 @@ internal sealed class ConfigurationWindow : Window
     private readonly AllaganToolsIpc _allaganToolsIpc;
     private string[] _filterNames = [];
     private int _filterIndexToAdd;
+    private CancellationTokenSource _cts = new();
+    private (bool Success, string Error)? _testConnectionResult;
 
     public ConfigurationWindow(IDalamudPluginInterface pluginInterface, IClientState clientState,
         Configuration configuration, AllaganToolsIpc allaganToolsIpc)
@@ -32,6 +37,7 @@ internal sealed class ConfigurationWindow : Window
     }
 
     public event EventHandler? ConfigUpdated;
+    public Func<CancellationToken, Task<(bool Success, string Error)>>? TestConnection { get; set; }
 
     public override void Draw()
     {
@@ -95,6 +101,53 @@ internal sealed class ConfigurationWindow : Window
             _configuration.Server.Bucket = bucket;
             Save(true);
         }
+
+        if (TestConnection != null)
+        {
+            if (ImGui.Button("Test Connection"))
+            {
+                _cts.Cancel();
+                _cts.Dispose();
+                _testConnectionResult = null;
+
+                _cts = new CancellationTokenSource();
+                var cancellationToken = _cts.Token;
+
+                Task.Factory.StartNew(async () =>
+                {
+                    try
+                    {
+                        var result = await TestConnection(cancellationToken).ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        _testConnectionResult = result;
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        // irrelevant
+                    }
+                }, cancellationToken, TaskCreationOptions.None, TaskScheduler.Default);
+            }
+
+            if (_testConnectionResult is { } connectionResult)
+            {
+                if (connectionResult.Success && string.IsNullOrEmpty(connectionResult.Error))
+                    TextWrapped(ImGuiColors.HealerGreen, "Connection successful.");
+                else if (connectionResult.Success)
+                {
+                    TextWrapped(ImGuiColors.HealerGreen, "URL, Token and Organization are valid.");
+                    TextWrapped(ImGuiColors.DalamudYellow, connectionResult.Error);
+                }
+                else
+                    TextWrapped(ImGuiColors.DalamudRed, $"Connection failed: {connectionResult.Error}");
+            }
+        }
+    }
+
+    private static void TextWrapped(Vector4 color, string text)
+    {
+        using var _ = ImRaii.PushColor(ImGuiCol.Text, color);
+        ImGui.TextWrapped(text);
     }
 
     private void DrawIncludedCharacters()
@@ -262,5 +315,11 @@ internal sealed class ConfigurationWindow : Window
 
         if (sendEvent)
             ConfigUpdated?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
     }
 }

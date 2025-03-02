@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Plugin.Services;
 using Influx.AllaganTools;
@@ -43,10 +44,12 @@ internal sealed class InfluxStatisticsClient : IDisposable
         _classJobNames = dataManager.GetExcelSheet<ClassJob>().Where(x => x.RowId > 0)
             .ToDictionary(x => (byte)x.RowId, x => x.Abbreviation.ToString())
             .AsReadOnly();
-        _expToJobs = dataManager.GetExcelSheet<ClassJob>().Where(x => x.RowId > 0 && !string.IsNullOrEmpty(x.Name.ToString()))
+        _expToJobs = dataManager.GetExcelSheet<ClassJob>()
+            .Where(x => x.RowId > 0 && !string.IsNullOrEmpty(x.Name.ToString()))
             .Where(x => x.JobIndex > 0 || x.DohDolJobIndex >= 0)
             .Where(x => x.Abbreviation.ToString() != "SMN")
-            .ToDictionary(x => x.ExpArrayIndex, x => new ClassJobDetail(x.Abbreviation.ToString(), x.DohDolJobIndex >= 0))
+            .ToDictionary(x => x.ExpArrayIndex,
+                x => new ClassJobDetail(x.Abbreviation.ToString(), x.DohDolJobIndex >= 0))
             .AsReadOnly();
         _prices = dataManager.GetExcelSheet<Item>()
             .AsEnumerable()
@@ -147,8 +150,8 @@ internal sealed class InfluxStatisticsClient : IDisposable
 
                 var writeApi = client.GetWriteApiAsync();
                 await writeApi.WritePointsAsync(
-                    values,
-                    _configuration.Server.Bucket, _configuration.Server.Organization)
+                        values,
+                        _configuration.Server.Bucket, _configuration.Server.Organization)
                     .ConfigureAwait(false);
 
                 _pluginLog.Verbose($"Influx: Sent {values.Count} data points to server");
@@ -333,6 +336,51 @@ internal sealed class InfluxStatisticsClient : IDisposable
 
         foreach (var inventoryPoint in GenerateInventoryStats(character.CharacterId, update, pointData))
             yield return inventoryPoint;
+    }
+
+    public async Task<(bool Success, string Error)> TestConnection(CancellationToken cancellationToken)
+    {
+        string orgName = _configuration.Server.Organization;
+        string bucketName = _configuration.Server.Bucket;
+        if (_influxClient == null)
+            return (false, "InfluxDB client is not initialized");
+
+        try
+        {
+            bool ping = await _influxClient.PingAsync().ConfigureAwait(false);
+            if (!ping)
+                return (false, "Ping failed");
+        }
+        catch (Exception e)
+        {
+            _pluginLog.Error(e, "Unable to connect to InfluxDB server");
+            return (false, "Failed to ping InfluxDB server");
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            var buckets = await _influxClient.GetBucketsApi()
+                .FindBucketsByOrgNameAsync(orgName, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (buckets == null)
+                return (false, "InfluxDB returned no buckets");
+
+            if (buckets.Count == 0)
+                return (true, "Could not check if bucket exists (the token might not have permissions to query buckets)");
+
+            if (buckets.All(x => x.Name != bucketName))
+                return (false, $"Bucket '{bucketName}' not found");
+        }
+        catch (Exception e)
+        {
+            _pluginLog.Error(e, "Could not query buckets from InfluxDB");
+            return (false, "Failed to load buckets from InfluxDB server");
+        }
+
+        return (true, string.Empty);
     }
 
     public void Dispose()

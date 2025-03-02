@@ -64,6 +64,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _windowSystem.AddWindow(_statisticsWindow);
         _configurationWindow = new ConfigurationWindow(_pluginInterface, clientState, _configuration, _allaganToolsIpc);
         _configurationWindow.ConfigUpdated += (_, _) => _influxStatisticsClient.UpdateClient();
+        _configurationWindow.TestConnection = _influxStatisticsClient.TestConnection;
         _windowSystem.AddWindow(_configurationWindow);
 
         _commandManager.AddHandler("/influx", new CommandInfo(ProcessCommand)
@@ -204,7 +205,6 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         return allSubs;
     }
 
-
     private void AutoEnrollCharacter()
     {
         if (_configuration.AutoEnrollCharacters)
@@ -253,6 +253,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _timer.Stop();
         _timer.Dispose();
         _windowSystem.RemoveAllWindows();
+        _configurationWindow.Dispose();
         _commandManager.RemoveHandler("/influx");
         _influxStatisticsClient.Dispose();
         _fcStatsCalculator.Dispose();
