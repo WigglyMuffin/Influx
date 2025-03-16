@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -8,78 +7,33 @@ using System.Threading.Tasks;
 using Dalamud.Plugin.Services;
 using Influx.AllaganTools;
 using Influx.LocalStatistics;
-using InfluxDB.Client;
-using InfluxDB.Client.Api.Domain;
-using InfluxDB.Client.Writes;
-using Lumina.Excel.Sheets;
 using GrandCompany = FFXIVClientStructs.FFXIV.Client.UI.Agent.GrandCompany;
 
-namespace Influx.Influx;
+namespace Influx.Remote;
 
-internal sealed class InfluxStatisticsClient : IDisposable
+internal abstract class BaseStatisticsClient : IDisposable
 {
-    private InfluxDBClient? _influxClient;
     private readonly IChatGui _chatGui;
     private readonly Configuration _configuration;
+    private readonly GameData _gameData;
     private readonly IClientState _clientState;
     private readonly IPluginLog _pluginLog;
-    private readonly ReadOnlyDictionary<byte, byte> _classJobToArrayIndex;
-    private readonly ReadOnlyDictionary<byte, string> _classJobNames;
-    private readonly ReadOnlyDictionary<sbyte, ClassJobDetail> _expToJobs;
-    private readonly ReadOnlyDictionary<uint, PriceInfo> _prices;
-    private readonly ReadOnlyDictionary<uint, string> _worldNames;
 
-    public InfluxStatisticsClient(IChatGui chatGui, Configuration configuration, IDataManager dataManager,
-        IClientState clientState, IPluginLog pluginLog)
+    protected BaseStatisticsClient(
+        IChatGui chatGui,
+        Configuration configuration,
+        GameData gameData,
+        IClientState clientState,
+        IPluginLog pluginLog)
     {
         _chatGui = chatGui;
         _configuration = configuration;
+        _gameData = gameData;
         _clientState = clientState;
         _pluginLog = pluginLog;
-        UpdateClient();
-
-        _classJobToArrayIndex = dataManager.GetExcelSheet<ClassJob>().Where(x => x.RowId > 0)
-            .ToDictionary(x => (byte)x.RowId, x => (byte)x.ExpArrayIndex)
-            .AsReadOnly();
-        _classJobNames = dataManager.GetExcelSheet<ClassJob>().Where(x => x.RowId > 0)
-            .ToDictionary(x => (byte)x.RowId, x => x.Abbreviation.ToString())
-            .AsReadOnly();
-        _expToJobs = dataManager.GetExcelSheet<ClassJob>()
-            .Where(x => x.RowId > 0 && !string.IsNullOrEmpty(x.Name.ToString()))
-            .Where(x => x.JobIndex > 0 || x.DohDolJobIndex >= 0)
-            .Where(x => x.Abbreviation.ToString() != "SMN")
-            .ToDictionary(x => x.ExpArrayIndex,
-                x => new ClassJobDetail(x.Abbreviation.ToString(), x.DohDolJobIndex >= 0))
-            .AsReadOnly();
-        _prices = dataManager.GetExcelSheet<Item>()
-            .AsEnumerable()
-            .ToDictionary(x => x.RowId, x => new PriceInfo
-            {
-                Name = x.Name.ToString(),
-                Normal = x.PriceLow,
-                UiCategory = x.ItemUICategory.RowId,
-            })
-            .AsReadOnly();
-        _worldNames = dataManager.GetExcelSheet<World>()
-            .Where(x => x.RowId > 0 && x.IsPublic)
-            .ToDictionary(x => x.RowId, x => x.Name.ToString())
-            .AsReadOnly();
     }
 
-    public bool Enabled => _configuration.Server.Enabled &&
-                           !string.IsNullOrEmpty(_configuration.Server.Server) &&
-                           !string.IsNullOrEmpty(_configuration.Server.Token) &&
-                           !string.IsNullOrEmpty(_configuration.Server.Organization) &&
-                           !string.IsNullOrEmpty(_configuration.Server.Bucket);
-
-    public void UpdateClient()
-    {
-        _influxClient?.Dispose();
-        _influxClient = null;
-
-        if (Enabled)
-            _influxClient = new InfluxDBClient(_configuration.Server.Server, _configuration.Server.Token);
-    }
+    public abstract bool Enabled { get; }
 
     public void OnStatisticsUpdate(StatisticsUpdate update)
     {
@@ -96,14 +50,11 @@ internal sealed class InfluxStatisticsClient : IDisposable
                 .Any(config => config.LocalContentId == x.CharacterId && config.IncludeFreeCompany))
             .Select(x => x.FreeCompanyId)
             .ToList();
-        var client = _influxClient;
-        if (client == null)
-            return;
         Task.Run(async () =>
         {
             try
             {
-                List<PointData> values = new();
+                List<StatisticsValues> values = new();
                 foreach (var (character, currencies) in currencyStats)
                 {
                     if (character.CharacterType == CharacterType.Character)
@@ -127,9 +78,9 @@ internal sealed class InfluxStatisticsClient : IDisposable
                     {
                         foreach (var sub in subs)
                         {
-                            values.Add(PointData.Measurement("submersibles")
+                            values.Add(StatisticsValues.Measurement("submersibles")
                                 .Tag("id", fc.CharacterId.ToString(CultureInfo.InvariantCulture))
-                                .Tag("world", _worldNames[fc.WorldId])
+                                .Tag("world", _gameData.WorldNames[fc.WorldId])
                                 .Tag("fc_name", fc.Name)
                                 .Tag("sub_id", $"{fc.CharacterId}_{sub.Id}")
                                 .Tag("sub_name", sub.Name)
@@ -138,23 +89,17 @@ internal sealed class InfluxStatisticsClient : IDisposable
                                 .Tag("part_bow", sub.Bow)
                                 .Tag("part_bridge", sub.Bridge)
                                 .Tag("build", sub.Build)
-                                .Field("enabled", sub.Enabled ? 1 : 0)
+                                .Field("enabled", sub.Enabled)
                                 .Field("level", sub.Level)
                                 .Field("predicted_level", sub.PredictedLevel)
                                 .Field("state", (int)sub.State)
                                 .Field("return_time", new DateTimeOffset(sub.ReturnTime).ToUnixTimeSeconds())
-                                .Timestamp(date, WritePrecision.S));
+                                .Timestamp(date));
                         }
                     }
                 }
 
-                var writeApi = client.GetWriteApiAsync();
-                await writeApi.WritePointsAsync(
-                        values,
-                        _configuration.Server.Bucket, _configuration.Server.Organization)
-                    .ConfigureAwait(false);
-
-                _pluginLog.Verbose($"Influx: Sent {values.Count} data points to server");
+                await SaveStatistics(values).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -164,7 +109,9 @@ internal sealed class InfluxStatisticsClient : IDisposable
         });
     }
 
-    private IEnumerable<PointData> GenerateCharacterStats(Character character, Currencies currencies,
+    protected abstract Task SaveStatistics(List<StatisticsValues> values);
+
+    private IEnumerable<StatisticsValues> GenerateCharacterStats(Character character, Currencies currencies,
         StatisticsUpdate update, DateTime date)
     {
         update.LocalStats.TryGetValue(character, out LocalStats? localStats);
@@ -173,15 +120,15 @@ internal sealed class InfluxStatisticsClient : IDisposable
                          _configuration.IncludedCharacters.Any(x =>
                              x.LocalContentId == character.CharacterId && x.IncludeFreeCompany);
 
-        Func<string, PointData> pointData = s => PointData.Measurement(s)
+        Func<string, StatisticsValues> value = s => StatisticsValues.Measurement(s)
             .Tag("id", character.CharacterId.ToString(CultureInfo.InvariantCulture))
             .Tag("player_name", character.Name)
-            .Tag("world", _worldNames[character.WorldId])
+            .Tag("world", _gameData.WorldNames[character.WorldId])
             .Tag("type", character.CharacterType.ToString())
             .Tag("fc_id", includeFc ? character.FreeCompanyId.ToString(CultureInfo.InvariantCulture) : null)
-            .Timestamp(date, WritePrecision.S);
+            .Timestamp(date);
 
-        yield return pointData("currency")
+        yield return value("currency")
             .Field("gil", localStats?.Gil ?? 0)
             .Field("mgp", localStats?.MGP ?? 0)
             .Field("ventures", currencies.Ventures)
@@ -191,7 +138,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
 
         if (localStats != null)
         {
-            yield return pointData("grandcompany")
+            yield return value("grandcompany")
                 .Field("gc", localStats.GrandCompany)
                 .Field("gc_rank", localStats.GcRank)
                 .Field("seals", (GrandCompany)localStats.GrandCompany switch
@@ -216,11 +163,11 @@ internal sealed class InfluxStatisticsClient : IDisposable
                     11 => 90_000,
                     _ => 0,
                 })
-                .Field("squadron_unlocked", localStats.SquadronUnlocked ? 1 : 0);
+                .Field("squadron_unlocked", localStats.SquadronUnlocked);
 
             if (localStats.ClassJobLevels.Count > 0)
             {
-                foreach (var (expIndex, job) in _expToJobs)
+                foreach (var (expIndex, job) in _gameData.ExpToJobs)
                 {
                     // last update to this char was in 6.x, so we don't have PCT/VPR data
                     if (localStats.ClassJobLevels.Count <= expIndex)
@@ -229,7 +176,7 @@ internal sealed class InfluxStatisticsClient : IDisposable
                     var level = localStats.ClassJobLevels[expIndex];
                     if (level > 0)
                     {
-                        yield return pointData("experience")
+                        yield return value("experience")
                             .Tag("job", job.Abbreviation)
                             .Tag("job_type", job.Type)
                             .Field("level", level);
@@ -239,73 +186,71 @@ internal sealed class InfluxStatisticsClient : IDisposable
 
             if (localStats.MsqCount != -1)
             {
-                yield return pointData("quests")
+                yield return value("quests")
                     .Tag("msq_name", localStats.MsqName)
                     .Field("msq_count", localStats.MsqCount)
                     .Field("msq_genre", localStats.MsqGenre);
             }
         }
 
-        foreach (var inventoryPoint in GenerateInventoryStats(character.CharacterId, update, pointData))
+        foreach (var inventoryPoint in GenerateInventoryStats(character.CharacterId, update, value))
             yield return inventoryPoint;
     }
 
-    private IEnumerable<PointData> GenerateRetainerStats(Character character, Currencies currencies,
+    private IEnumerable<StatisticsValues> GenerateRetainerStats(Character character, Currencies currencies,
         StatisticsUpdate update, DateTime date)
     {
         var owner = update.Currencies.Keys.First(x => x.CharacterId == character.OwnerId);
 
-        Func<string, PointData> pointData = s => PointData.Measurement(s)
+        Func<string, StatisticsValues> value = s => StatisticsValues.Measurement(s)
             .Tag("id", character.CharacterId.ToString(CultureInfo.InvariantCulture))
             .Tag("player_name", owner.Name)
             .Tag("player_id", character.OwnerId.ToString(CultureInfo.InvariantCulture))
-            .Tag("world", _worldNames[character.WorldId])
+            .Tag("world", _gameData.WorldNames[character.WorldId])
             .Tag("type", character.CharacterType.ToString())
             .Tag("retainer_name", character.Name)
-            .Timestamp(date, WritePrecision.S);
+            .Timestamp(date);
 
-        yield return pointData("currency")
+        yield return value("currency")
             .Field("gil", currencies.Gil)
             .Field("ceruleum_tanks", currencies.CeruleumTanks)
             .Field("repair_kits", currencies.RepairKits);
 
         if (update.LocalStats.TryGetValue(owner, out var ownerStats) && character.ClassJob != 0)
         {
-            yield return pointData("retainer")
-                .Tag("class", _classJobNames[character.ClassJob])
+            yield return value("retainer")
+                .Tag("class", _gameData.ClassJobNames[character.ClassJob])
                 .Field("level", character.Level)
-                .Field("is_max_level", character.Level == ownerStats.MaxLevel ? 1 : 0)
+                .Field("is_max_level", character.Level == ownerStats.MaxLevel)
                 .Field("can_reach_max_level",
                     ownerStats.ClassJobLevels.Count > 0 &&
-                    ownerStats.ClassJobLevels[_classJobToArrayIndex[character.ClassJob]] ==
-                    ownerStats.MaxLevel
-                        ? 1
-                        : 0)
+                    ownerStats.ClassJobLevels[_gameData.ClassJobToArrayIndex[character.ClassJob]] ==
+                    ownerStats.MaxLevel)
                 .Field("levels_before_cap",
                     ownerStats.ClassJobLevels.Count > 0
-                        ? ownerStats.ClassJobLevels[_classJobToArrayIndex[character.ClassJob]] -
+                        ? ownerStats.ClassJobLevels[_gameData.ClassJobToArrayIndex[character.ClassJob]] -
                           character.Level
                         : 0);
         }
 
 
-        foreach (var inventoryPoint in GenerateInventoryStats(character.CharacterId, update, pointData))
+        foreach (var inventoryPoint in GenerateInventoryStats(character.CharacterId, update, value))
             yield return inventoryPoint;
     }
 
-    private IEnumerable<PointData> GenerateInventoryStats(ulong localContentId, StatisticsUpdate update,
-        Func<string, PointData> pointData)
+    private IEnumerable<StatisticsValues> GenerateInventoryStats(ulong localContentId, StatisticsUpdate update,
+        Func<string, StatisticsValues> value)
     {
         foreach (var (filterName, items) in update.InventoryItems)
         {
             foreach (var item in items.Where(x => x.LocalContentId == localContentId)
                          .GroupBy(x => new { x.ItemId, x.IsHq }))
             {
-                _prices.TryGetValue(item.Key.ItemId, out PriceInfo priceInfo);
+                _gameData.Prices.TryGetValue(item.Key.ItemId, out GameData.PriceInfo priceInfo);
 
                 bool priceHq = item.Key.IsHq || priceInfo.UiCategory == 58; // materia always uses HQ prices
 
-                yield return pointData("items")
+                yield return value("items")
                     .Tag("filter_name", filterName)
                     .Tag("item_id", item.Key.ItemId.ToString(CultureInfo.InvariantCulture))
                     .Tag("item_name", priceInfo.Name)
@@ -316,88 +261,29 @@ internal sealed class InfluxStatisticsClient : IDisposable
         }
     }
 
-    private IEnumerable<PointData> GenerateFcStats(Character character, Currencies currencies, StatisticsUpdate update,
+    private IEnumerable<StatisticsValues> GenerateFcStats(Character character, Currencies currencies, StatisticsUpdate update,
         DateTime date)
     {
         update.FcStats.TryGetValue(character.CharacterId, out FcStats? fcStats);
 
-        Func<string, PointData> pointData = s => PointData.Measurement(s)
+        Func<string, StatisticsValues> value = s => StatisticsValues.Measurement(s)
             .Tag("id", character.CharacterId.ToString(CultureInfo.InvariantCulture))
             .Tag("fc_name", character.Name)
-            .Tag("world", _worldNames[character.WorldId])
+            .Tag("world", _gameData.WorldNames[character.WorldId])
             .Tag("type", character.CharacterType.ToString())
-            .Timestamp(date, WritePrecision.S);
+            .Timestamp(date);
 
-        yield return pointData("currency")
+        yield return value("currency")
             .Field("gil", currencies.Gil)
             .Field("fccredit", fcStats?.FcCredits ?? 0)
             .Field("ceruleum_tanks", currencies.CeruleumTanks)
             .Field("repair_kits", currencies.RepairKits);
 
-        foreach (var inventoryPoint in GenerateInventoryStats(character.CharacterId, update, pointData))
+        foreach (var inventoryPoint in GenerateInventoryStats(character.CharacterId, update, value))
             yield return inventoryPoint;
     }
 
-    public async Task<(bool Success, string Error)> TestConnection(CancellationToken cancellationToken)
-    {
-        string orgName = _configuration.Server.Organization;
-        string bucketName = _configuration.Server.Bucket;
-        if (_influxClient == null)
-            return (false, "InfluxDB client is not initialized");
+    public abstract Task<(bool Success, string Error)> TestConnection(CancellationToken cancellationToken);
 
-        try
-        {
-            bool ping = await _influxClient.PingAsync().ConfigureAwait(false);
-            if (!ping)
-                return (false, "Ping failed");
-        }
-        catch (Exception e)
-        {
-            _pluginLog.Error(e, "Unable to connect to InfluxDB server");
-            return (false, "Failed to ping InfluxDB server");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        try
-        {
-            var buckets = await _influxClient.GetBucketsApi()
-                .FindBucketsByOrgNameAsync(orgName, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (buckets == null)
-                return (false, "InfluxDB returned no buckets");
-
-            if (buckets.Count == 0)
-                return (true, "Could not check if bucket exists (the token might not have permissions to query buckets)");
-
-            if (buckets.All(x => x.Name != bucketName))
-                return (false, $"Bucket '{bucketName}' not found");
-        }
-        catch (Exception e)
-        {
-            _pluginLog.Error(e, "Could not query buckets from InfluxDB");
-            return (false, "Failed to load buckets from InfluxDB server");
-        }
-
-        return (true, string.Empty);
-    }
-
-    public void Dispose()
-    {
-        _influxClient?.Dispose();
-    }
-
-    private struct PriceInfo
-    {
-        public string Name { get; init; }
-        public uint Normal { get; init; }
-        public uint Hq => Normal + (uint)Math.Ceiling((decimal)Normal / 10);
-        public uint UiCategory { get; set; }
-    }
-
-    private sealed record ClassJobDetail(string Abbreviation, bool IsNonCombat)
-    {
-        public string Type => IsNonCombat ? "doh_dol" : "combat";
-    }
+    public abstract void Dispose();
 }

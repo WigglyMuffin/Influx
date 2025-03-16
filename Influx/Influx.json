@@ -1,8 +1,8 @@
 ﻿{
   "Name": "Influx",
   "Author": "Liza Carvelli",
-  "Punchline": "Sync game stats to InfluxDB",
-  "Description": "Sync game stats to InfluxDB",
+  "Punchline": "Sync game stats to InfluxDB or QuestDB",
+  "Description": "Uploads your game statistics (such as quest progress, gil, retainer stats) to an InfluxDB or QuestDB instance, making it possible to automatically track your progress through external tools such as Grafana.",
   "RepoUrl": "https://git.carvel.li/liza/Influx",
   "IconUrl": "https://plugins.carvel.li/icons/Influx.png"
 }

@@ -17,6 +17,8 @@ namespace Influx.Windows;
 
 internal sealed class ConfigurationWindow : Window, IDisposable
 {
+    private readonly string[] _remoteTypeNames = ["InfluxDB", "QuestDB"];
+
     private readonly IDalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
     private readonly Configuration _configuration;
@@ -74,73 +76,109 @@ internal sealed class ConfigurationWindow : Window, IDisposable
             Save(true);
         }
 
+        int type = (int)_configuration.Server.Type;
+        if (ImGui.Combo("Server Type", ref type, _remoteTypeNames, _remoteTypeNames.Length))
+        {
+            _configuration.Server.Type = (Configuration.ERemoteType)type;
+            Save(true);
+        }
+
         string server = _configuration.Server.Server;
-        if (ImGui.InputText("InfluxDB URL", ref server, 128))
+        if (ImGui.InputText("Server URL", ref server, 128))
         {
             _configuration.Server.Server = server;
             Save(true);
         }
 
-        string token = _configuration.Server.Token;
-        if (ImGui.InputText("Token", ref token, 128, ImGuiInputTextFlags.Password))
+        if (_configuration.Server.Type == Configuration.ERemoteType.InfluxDb)
         {
-            _configuration.Server.Token = token;
-            Save(true);
-        }
-
-        string organization = _configuration.Server.Organization;
-        if (ImGui.InputText("Organization", ref organization, 128))
-        {
-            _configuration.Server.Organization = organization;
-            Save(true);
-        }
-
-        string bucket = _configuration.Server.Bucket;
-        if (ImGui.InputText("Bucket", ref bucket, 128))
-        {
-            _configuration.Server.Bucket = bucket;
-            Save(true);
-        }
-
-        if (TestConnection != null)
-        {
-            if (ImGui.Button("Test Connection"))
+            string token = _configuration.Server.Token;
+            if (ImGui.InputText("Token", ref token, 128, ImGuiInputTextFlags.Password))
             {
-                _cts.Cancel();
-                _cts.Dispose();
-                _testConnectionResult = null;
-
-                _cts = new CancellationTokenSource();
-                var cancellationToken = _cts.Token;
-
-                Task.Factory.StartNew(async () =>
-                {
-                    try
-                    {
-                        var result = await TestConnection(cancellationToken).ConfigureAwait(false);
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                        _testConnectionResult = result;
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        // irrelevant
-                    }
-                }, cancellationToken, TaskCreationOptions.None, TaskScheduler.Default);
+                _configuration.Server.Token = token;
+                Save(true);
             }
 
-            if (_testConnectionResult is { } connectionResult)
+            string organization = _configuration.Server.Organization;
+            if (ImGui.InputText("Organization", ref organization, 128))
             {
-                if (connectionResult.Success && string.IsNullOrEmpty(connectionResult.Error))
-                    TextWrapped(ImGuiColors.HealerGreen, "Connection successful.");
-                else if (connectionResult.Success)
+                _configuration.Server.Organization = organization;
+                Save(true);
+            }
+
+            string bucket = _configuration.Server.Bucket;
+            if (ImGui.InputText("Bucket", ref bucket, 128))
+            {
+                _configuration.Server.Bucket = bucket;
+                Save(true);
+            }
+
+            if (TestConnection != null)
+            {
+                if (ImGui.Button("Test Connection"))
                 {
-                    TextWrapped(ImGuiColors.HealerGreen, "URL, Token and Organization are valid.");
-                    TextWrapped(ImGuiColors.DalamudYellow, connectionResult.Error);
+                    _cts.Cancel();
+                    _cts.Dispose();
+                    _testConnectionResult = null;
+
+                    _cts = new CancellationTokenSource();
+                    var cancellationToken = _cts.Token;
+
+                    Task.Factory.StartNew(async () =>
+                    {
+                        try
+                        {
+                            var result = await TestConnection(cancellationToken).ConfigureAwait(false);
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                            _testConnectionResult = result;
+                        }
+                        catch (TaskCanceledException)
+                        {
+                            // irrelevant
+                        }
+                    }, cancellationToken, TaskCreationOptions.None, TaskScheduler.Default);
                 }
-                else
-                    TextWrapped(ImGuiColors.DalamudRed, $"Connection failed: {connectionResult.Error}");
+
+                if (_testConnectionResult is { } connectionResult)
+                {
+                    if (connectionResult.Success && string.IsNullOrEmpty(connectionResult.Error))
+                        TextWrapped(ImGuiColors.HealerGreen, "Connection successful.");
+                    else if (connectionResult.Success)
+                    {
+                        TextWrapped(ImGuiColors.HealerGreen, "URL, Token and Organization are valid.");
+                        TextWrapped(ImGuiColors.DalamudYellow, connectionResult.Error);
+                    }
+                    else
+                        TextWrapped(ImGuiColors.DalamudRed, $"Connection failed: {connectionResult.Error}");
+                }
             }
+        }
+        else
+        {
+            string username = _configuration.Server.Username;
+            if (ImGui.InputText("Username", ref username, 128))
+            {
+                _configuration.Server.Username = username;
+                Save(true);
+            }
+
+            string password = _configuration.Server.Password;
+            if (ImGui.InputText("Password", ref password, 128, ImGuiInputTextFlags.Password))
+            {
+                _configuration.Server.Password = password;
+                Save(true);
+            }
+
+            string tablePrefix = _configuration.Server.TablePrefix;
+            if (ImGui.InputText("Prefix", ref tablePrefix, 128))
+            {
+                _configuration.Server.TablePrefix = tablePrefix;
+                Save(true);
+            }
+
+            ImGui.SameLine();
+            ImGuiComponents.HelpMarker("Helpful to distinguish between different accounts (which may upload data at different times).\nIf this is set to 'a', the tables will be named 'a_quests', 'a_retainer' etc.");
         }
     }
 

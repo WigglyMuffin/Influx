@@ -8,10 +8,9 @@ using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using ECommons;
 using Influx.AllaganTools;
-using Influx.Influx;
 using Influx.LocalStatistics;
+using Influx.Remote;
 using Influx.SubmarineTracker;
 using Influx.Windows;
 using LLib;
@@ -33,7 +32,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
     private readonly SubmarineTrackerIpc _submarineTrackerIpc;
     private readonly LocalStatsCalculator _localStatsCalculator;
     private readonly FcStatsCalculator _fcStatsCalculator;
-    private readonly InfluxStatisticsClient _influxStatisticsClient;
+    private readonly StatisticsClientManager _statisticsClientManager;
     private readonly WindowSystem _windowSystem;
     private readonly StatisticsWindow _statisticsWindow;
     private readonly ConfigurationWindow _configurationWindow;
@@ -56,15 +55,15 @@ internal sealed class InfluxPlugin : IDalamudPlugin
             new LocalStatsCalculator(pluginInterface, clientState, addonLifecycle, pluginLog, dataManager);
         _fcStatsCalculator = new FcStatsCalculator(this, pluginInterface, clientState, addonLifecycle, gameGui,
             framework, _configuration, pluginLog);
-        _influxStatisticsClient =
-            new InfluxStatisticsClient(chatGui, _configuration, dataManager, clientState, _pluginLog);
+        _statisticsClientManager =
+            new StatisticsClientManager(chatGui, _configuration, dataManager, clientState, _pluginLog);
 
         _windowSystem = new WindowSystem(typeof(InfluxPlugin).FullName);
         _statisticsWindow = new StatisticsWindow();
         _windowSystem.AddWindow(_statisticsWindow);
         _configurationWindow = new ConfigurationWindow(_pluginInterface, clientState, _configuration, _allaganToolsIpc);
-        _configurationWindow.ConfigUpdated += (_, _) => _influxStatisticsClient.UpdateClient();
-        _configurationWindow.TestConnection = _influxStatisticsClient.TestConnection;
+        _configurationWindow.ConfigUpdated += (_, _) => _statisticsClientManager.UpdateClient();
+        _configurationWindow.TestConnection = _statisticsClientManager.TestConnection;
         _windowSystem.AddWindow(_configurationWindow);
 
         _commandManager.AddHandler("/influx", new CommandInfo(ProcessCommand)
@@ -178,7 +177,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
                         .ToDictionary(x => x.Key, x => x.Value),
                 };
                 _statisticsWindow.OnStatisticsUpdate(update);
-                _influxStatisticsClient.OnStatisticsUpdate(update);
+                _statisticsClientManager.OnStatisticsUpdate(update);
             }
             catch (Exception e)
             {
@@ -255,7 +254,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _windowSystem.RemoveAllWindows();
         _configurationWindow.Dispose();
         _commandManager.RemoveHandler("/influx");
-        _influxStatisticsClient.Dispose();
+        _statisticsClientManager.Dispose();
         _fcStatsCalculator.Dispose();
         _localStatsCalculator.Dispose();
         _allaganToolsIpc.Dispose();

@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/11.0.0">
     <PropertyGroup>
-        <Version>2.2</Version>
+        <Version>3.0</Version>
         <OutputPath>dist</OutputPath>
     </PropertyGroup>
 
@@ -10,6 +10,7 @@
     <ItemGroup>
         <PackageReference Include="InfluxDB.Client" Version="4.14.0" />
         <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="9.0.0-preview.1.24081.5" />
+        <PackageReference Include="net-questdb-client" Version="2.1.0" />
     </ItemGroup>
 
     <ItemGroup>

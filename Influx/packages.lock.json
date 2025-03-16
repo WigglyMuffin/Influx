@@ -51,6 +51,12 @@
           "Microsoft.SourceLink.Common": "8.0.0"
         }
       },
+      "net-questdb-client": {
+        "type": "Direct",
+        "requested": "[2.1.0, )",
+        "resolved": "2.1.0",
+        "contentHash": "UwsnVCGkV95dXHf67QkqgSC1Yp7leG2cDutqhwquwY5NEvpaVIWW3q0TSZnBksifS/9xSxWak278shlNDiWakg=="
+      },
       "CsvHelper": {
         "type": "Transitive",
         "resolved": "30.0.1",
