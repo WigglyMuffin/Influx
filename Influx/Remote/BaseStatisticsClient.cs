@@ -150,18 +150,18 @@ internal abstract class BaseStatisticsClient : IDisposable
                 })
                 .Field("seal_cap", localStats.GcRank switch
                 {
-                    1 => 10_000,
-                    2 => 15_000,
-                    3 => 20_000,
-                    4 => 25_000,
-                    5 => 30_000,
-                    6 => 35_000,
-                    7 => 40_000,
-                    8 => 45_000,
-                    9 => 50_000,
-                    10 => 80_000,
-                    11 => 90_000,
-                    _ => 0,
+                    1 => 10_000u,
+                    2 => 15_000u,
+                    3 => 20_000u,
+                    4 => 25_000u,
+                    5 => 30_000u,
+                    6 => 35_000u,
+                    7 => 40_000u,
+                    8 => 45_000u,
+                    9 => 50_000u,
+                    10 => 80_000u,
+                    11 => 90_000u,
+                    _ => 0u,
                 })
                 .Field("squadron_unlocked", localStats.SquadronUnlocked);
 

@@ -65,7 +65,7 @@ internal sealed class InfluxDbStatisticsClient : BaseStatisticsClient
             pointData = pointData.Tag(tag.Key, tag.Value);
 
         foreach (var field in value.BoolFields)
-            pointData = pointData.Field(field.Key, field.Value);
+            pointData = pointData.Field(field.Key, field.Value ? 1 : 0);
 
         foreach (var field in value.LongFields)
             pointData = pointData.Field(field.Key, field.Value);
