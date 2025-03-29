@@ -11,6 +11,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ECommons", "ECommons\ECommo
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AutoRetainerAPI", "AutoRetainerAPI\AutoRetainerAPI\AutoRetainerAPI.csproj", "{7352C470-D652-4909-AD90-8A5171A86698}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{6BAE34E5-B1B2-4E0C-B505-C699BBE87E61}"
+	ProjectSection(SolutionItems) = preProject
+		global.json = global.json
+		.woodpecker\build.yaml = .woodpecker\build.yaml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64

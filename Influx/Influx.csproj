@@ -8,8 +8,8 @@
     <Import Project="..\LLib\RenameZip.targets"/>
 
     <ItemGroup>
-        <PackageReference Include="InfluxDB.Client" Version="4.14.0" />
-        <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="9.0.0-preview.1.24081.5" />
+        <PackageReference Include="InfluxDB.Client" Version="4.18.0" />
+        <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="9.0.3" />
         <PackageReference Include="net-questdb-client" Version="2.1.0" />
     </ItemGroup>
 
