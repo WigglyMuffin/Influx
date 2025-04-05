@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Dalamud.Plugin.Services;
+using LLib.GameData;
 using Lumina.Excel.Sheets;
 
 namespace Influx.Remote;
@@ -20,7 +21,7 @@ internal sealed class GameData
         ExpToJobs = dataManager.GetExcelSheet<ClassJob>()
             .Where(x => x.RowId > 0 && !string.IsNullOrEmpty(x.Name.ToString()))
             .Where(x => x.JobIndex > 0 || x.DohDolJobIndex >= 0)
-            .Where(x => x.Abbreviation.ToString() != "SMN")
+            .Where(x => x.RowId != (uint)EClassJob.Summoner)
             .ToDictionary(x => x.ExpArrayIndex,
                 x => new ClassJobDetail(x.Abbreviation.ToString(), x.DohDolJobIndex >= 0))
             .AsReadOnly();

@@ -17,6 +17,17 @@ namespace Influx.LocalStatistics;
 
 internal sealed class LocalStatsCalculator : IDisposable
 {
+    private static readonly uint[] CloseToHome = [
+        65621, // lancer
+        65644, // marauder
+        65645, // arcanist
+        65659, // archer
+        65660, // conjurer
+        66104, // gladiator
+        66105, // pugilist
+        66106, // thaumaturge
+    ];
+
     private const uint ComingToGridania = 65575;
     private const uint ComingToLimsa = 65643;
     private const uint ComingToUldah = 66130;
@@ -124,7 +135,7 @@ internal sealed class LocalStatsCalculator : IDisposable
             QuestInfo quest = quests.First(x => x.RowId == questId);
             quests.Remove(quest);
 
-            if (quest.Name == "Close to Home")
+            if (CloseToHome.Contains(quest.RowId))
             {
                 quest = new QuestInfo
                 {
