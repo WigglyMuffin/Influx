@@ -2,13 +2,13 @@
 using System.Globalization;
 using System.Linq;
 using System.Numerics;
-using Dalamud.Interface.Windowing;
 using ImGuiNET;
 using Influx.AllaganTools;
+using LLib.ImGui;
 
 namespace Influx.Windows;
 
-internal sealed class StatisticsWindow : Window
+internal sealed class StatisticsWindow : LWindow
 {
     private List<StatisticsRow> _rows = new();
 
@@ -22,7 +22,7 @@ internal sealed class StatisticsWindow : Window
         SizeCondition = ImGuiCond.Appearing;
     }
 
-    public override void Draw()
+    public override void DrawContent()
     {
         if (ImGui.BeginTable("Currencies###InfluxStatisticsCurrencies", 2))
         {

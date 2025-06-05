@@ -7,15 +7,15 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ImGuiNET;
 using Influx.AllaganTools;
+using LLib.ImGui;
 
 namespace Influx.Windows;
 
-internal sealed class ConfigurationWindow : Window, IDisposable
+internal sealed class ConfigurationWindow : LWindow, IDisposable
 {
     private readonly string[] _remoteTypeNames = ["InfluxDB", "QuestDB"];
 
@@ -41,7 +41,7 @@ internal sealed class ConfigurationWindow : Window, IDisposable
     public event EventHandler? ConfigUpdated;
     public Func<CancellationToken, Task<(bool Success, string Error)>>? TestConnection { get; set; }
 
-    public override void Draw()
+    public override void DrawContent()
     {
         using var tabBar = ImRaii.TabBar("InfluxConfigTabs");
         if (tabBar)
