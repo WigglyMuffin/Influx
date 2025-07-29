@@ -20,7 +20,7 @@ internal sealed class SubmarineTrackerIpc
     }
 
     [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope")]
-    public IReadOnlyDictionary<Character, List<SubmarineStats>> GetSubmarineStats(List<Character> characters)
+    public IReadOnlyDictionary<Character, SubmarineStats> GetSubmarineStats(List<Character> characters)
     {
         if (_dalamudReflector.TryGetDalamudPlugin("Submarine Tracker", out IDalamudPlugin? it, false, true))
         {
@@ -42,19 +42,19 @@ internal sealed class SubmarineTrackerIpc
                 .ToDictionary(x => x.Fc!, x => x.Subs);
         }
         else
-            return new Dictionary<Character, List<SubmarineStats>>();
+            return new Dictionary<Character, SubmarineStats>();
     }
 
-    private sealed record SubmarineInfo(Character? Fc, List<SubmarineStats> Subs)
+    private sealed record SubmarineInfo(Character? Fc, SubmarineStats Subs)
     {
         public SubmarineInfo(Character? fc, List<Submarine> subs)
-            : this(fc, subs.Select(x => Convert(fc, subs.IndexOf(x), x)).ToList())
+            : this(fc, new SubmarineStats { Submarines = subs.Select(x => Convert(fc, subs.IndexOf(x), x)).ToList() })
         {
         }
 
-        private static SubmarineStats Convert(Character? fc, int index, Submarine y)
+        private static SingleSubmarineStats Convert(Character? fc, int index, Submarine y)
         {
-            return new SubmarineStats
+            return new SingleSubmarineStats
             {
                 Id = index,
                 Name = y.Name,

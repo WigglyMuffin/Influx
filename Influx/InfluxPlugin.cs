@@ -8,6 +8,7 @@ using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using ECommons;
 using Influx.AllaganTools;
 using Influx.LocalStatistics;
 using Influx.Remote;
@@ -186,8 +187,8 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         }
     }
 
-    private IReadOnlyDictionary<Character, List<SubmarineStats>> UpdateEnabledSubs(
-        IReadOnlyDictionary<Character, List<SubmarineStats>> allSubs, List<Character> characters)
+    private IReadOnlyDictionary<Character, SubmarineStats> UpdateEnabledSubs(
+        IReadOnlyDictionary<Character, SubmarineStats> allSubs, List<Character> characters)
     {
         foreach (var (character, subs) in allSubs)
         {
@@ -195,9 +196,11 @@ internal sealed class InfluxPlugin : IDalamudPlugin
             if (owner == null)
                 continue;
 
-            var enabledSubs = _fcStatsCalculator.GetEnabledSubs(owner.CharacterId);
-            foreach (var sub in subs)
+            var (enabledSubs, freeSlots) = _fcStatsCalculator.GetFcConfiguration(owner.CharacterId);
+            foreach (var sub in subs.Submarines)
                 sub.Enabled = enabledSubs.Contains(sub.Name);
+
+            subs.FreeSlots = freeSlots;
         }
 
 

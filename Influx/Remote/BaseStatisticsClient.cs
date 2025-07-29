@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Dalamud.Plugin.Services;
 using Influx.AllaganTools;
 using Influx.LocalStatistics;
+using Influx.SubmarineTracker;
 using GrandCompany = FFXIVClientStructs.FFXIV.Client.UI.Agent.GrandCompany;
 
 namespace Influx.Remote;
@@ -76,7 +77,7 @@ internal abstract class BaseStatisticsClient : IDisposable
                 {
                     if (validFcIds.Contains(fc.CharacterId))
                     {
-                        foreach (var sub in subs)
+                        foreach (var sub in subs.Submarines)
                         {
                             values.Add(StatisticsValues.Measurement("submersibles")
                                 .Tag("id", fc.CharacterId.ToString(CultureInfo.InvariantCulture))
@@ -96,6 +97,13 @@ internal abstract class BaseStatisticsClient : IDisposable
                                 .Field("return_time", new DateTimeOffset(sub.ReturnTime).ToUnixTimeSeconds())
                                 .Timestamp(date));
                         }
+
+                        values.Add(StatisticsValues.Measurement("unbuilt_submersibles")
+                            .Tag("id", fc.CharacterId.ToString(CultureInfo.InvariantCulture))
+                            .Tag("world", _gameData.WorldNames[fc.WorldId])
+                            .Tag("fc_name", fc.Name)
+                            .Field("free_slots", subs.FreeSlots)
+                            .Timestamp(date));
                     }
                 }
 
@@ -104,7 +112,8 @@ internal abstract class BaseStatisticsClient : IDisposable
             catch (Exception e)
             {
                 _pluginLog.Error(e, "Unable to update statistics");
-                _chatGui.PrintError(e.Message);
+                if (!e.Message.Contains("TaskCanceledException", StringComparison.OrdinalIgnoreCase))
+                    _chatGui.PrintError(e.Message);
             }
         });
     }

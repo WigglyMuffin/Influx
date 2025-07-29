@@ -215,13 +215,14 @@ internal sealed class FcStatsCalculator : IDisposable
 
     public IReadOnlyDictionary<ulong, FcStats> GetAllFcStats() => _cache.AsReadOnly();
 
-    public HashSet<string> GetEnabledSubs(ulong characterId)
+    public (HashSet<string> EnabledSubs, int FreeSlots) GetFcConfiguration(ulong characterId)
     {
         var offlineCharacterData = _autoRetainerApi.GetOfflineCharacterData(characterId);
         if (offlineCharacterData == null || !offlineCharacterData.WorkshopEnabled)
-            return [];
+            return ([], 0);
 
-        return offlineCharacterData.EnabledSubs;
+        int freeSlots = offlineCharacterData.NumSubSlots - offlineCharacterData.AdditionalSubmarineData.Count;
+        return (offlineCharacterData.EnabledSubs, freeSlots);
     }
 
     public void Dispose()
