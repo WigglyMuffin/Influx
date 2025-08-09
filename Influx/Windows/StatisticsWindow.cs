@@ -2,7 +2,7 @@
 using System.Globalization;
 using System.Linq;
 using System.Numerics;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Influx.AllaganTools;
 using LLib.ImGui;
 

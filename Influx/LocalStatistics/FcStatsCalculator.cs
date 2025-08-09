@@ -12,6 +12,7 @@ using ECommons.Automation;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.UI.Info;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using LLib.GameUI;
 using Newtonsoft.Json;
 
 namespace Influx.LocalStatistics;
@@ -104,11 +105,11 @@ internal sealed class FcStatsCalculator : IDisposable
 
         unsafe
         {
-            AtkUnitBase* addon = (AtkUnitBase*)_gameGui.GetAddonByName("FreeCompany");
+            AtkUnitBase* addon = (AtkUnitBase*)_gameGui.GetAddonByName("FreeCompany").Address;
             if (addon != null && addon->IsVisible)
                 FcPostReceiveEvent(AddonEvent.PostReceiveEvent);
             else
-                Chat.Instance.SendMessage("/freecompanycmd");
+                Chat.SendMessage("/freecompanycmd");
         }
     }
 
