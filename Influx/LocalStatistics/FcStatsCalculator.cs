@@ -12,7 +12,6 @@ using ECommons.Automation;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.UI.Info;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using LLib.GameUI;
 using Newtonsoft.Json;
 
 namespace Influx.LocalStatistics;
