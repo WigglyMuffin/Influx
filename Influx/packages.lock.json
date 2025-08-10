@@ -56,6 +56,11 @@
         "resolved": "33.0.1",
         "contentHash": "fev4lynklAU2A9GVMLtwarkwaanjSYB4wUqO2nOJX5hnzObORzUqVLe+bDYCUyIIRQM4o5Bsq3CcyJR89iMmEQ=="
       },
+      "ECommons": {
+        "type": "Transitive",
+        "resolved": "3.0.1.5",
+        "contentHash": "dUbgHV16y3nq/PgEg244IpBAuP0FQfrBFyrlNDfSkeNrB7Ze7WqOneGP+Nuorr1hLv0p2E2nyrNvFp8mJuKDWQ=="
+      },
       "InfluxDB.Client.Core": {
         "type": "Transitive",
         "resolved": "4.18.0",
@@ -179,9 +184,6 @@
         "type": "Transitive",
         "resolved": "8.0.0",
         "contentHash": "+TUFINV2q2ifyXauQXRwy4CiBhqvDEDZeVJU7qfxya4aRYOKzVBpN+4acx25VcPB9ywUN6C0n8drWl110PhZEg=="
-      },
-      "ecommons": {
-        "type": "Project"
       },
       "autoretainerapi": {
         "type": "Project",
