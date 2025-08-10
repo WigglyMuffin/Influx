@@ -10,6 +10,7 @@ using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using ECommons;
 using Influx.AllaganTools;
 using LLib.ImGui;
 
@@ -178,7 +179,8 @@ internal sealed class ConfigurationWindow : LWindow, IDisposable
             }
 
             ImGui.SameLine();
-            ImGuiComponents.HelpMarker("Helpful to distinguish between different accounts (which may upload data at different times).\nIf this is set to 'a', the tables will be named 'a_quests', 'a_retainer' etc.");
+            ImGuiComponents.HelpMarker(
+                "Helpful to distinguish between different accounts (which may upload data at different times).\nIf this is set to 'a', the tables will be named 'a_quests', 'a_retainer' etc.");
         }
     }
 
@@ -264,6 +266,7 @@ internal sealed class ConfigurationWindow : LWindow, IDisposable
         }
         else
         {
+            Configuration.CharacterInfo? characterToRemove = null;
             foreach (var world in _configuration.IncludedCharacters.OrderBy(x => x.CachedWorldName)
                          .ThenBy(x => x.LocalContentId).GroupBy(x => x.CachedWorldName))
             {
@@ -275,10 +278,41 @@ internal sealed class ConfigurationWindow : LWindow, IDisposable
                     {
                         ImGui.Selectable(
                             $"{characterInfo.CachedPlayerName} @ {characterInfo.CachedWorldName} ({characterInfo.LocalContentId:X}{(!characterInfo.IncludeFreeCompany ? ", no FC" : "")})");
+                        ImGui.OpenPopupOnItemClick($"###Context{characterInfo.LocalContentId}");
+
+                        using var popup = ImRaii.ContextPopup($"###Context{characterInfo.LocalContentId}");
+                        if (!popup)
+                            continue;
+
+                        if (!characterInfo.IncludeFreeCompany)
+                        {
+                            if (ImGui.MenuItem("Include Free Company"))
+                            {
+                                characterInfo.IncludeFreeCompany = true;
+                                Save();
+                            }
+                        }
+                        else
+                        {
+                            if (ImGui.MenuItem("Exclude Free Company"))
+                            {
+                                characterInfo.IncludeFreeCompany = false;
+                                Save();
+                            }
+                        }
+
+                        if (ImGui.MenuItem($"Remove {characterInfo.CachedPlayerName}"))
+                            characterToRemove = characterInfo;
                     }
 
                     ImGui.Unindent(30);
                 }
+            }
+
+            if (characterToRemove != null)
+            {
+                _configuration.IncludedCharacters.Remove(characterToRemove);
+                Save();
             }
         }
     }
