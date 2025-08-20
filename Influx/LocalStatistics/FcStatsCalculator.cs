@@ -160,32 +160,19 @@ internal sealed class FcStatsCalculator : IDisposable
                 ulong localContentId = fcProxy->Id;
                 if (localContentId != 0)
                 {
-                    var atkArrays = Framework.Instance()->GetUIModule()->GetRaptureAtkModule()->AtkModule
-                        .AtkArrayDataHolder;
-                    if (atkArrays.NumberArrayCount > 51)
+                    var fcArrayData = AtkStage.Instance()->GetNumberArrayData(NumberArrayType.FreeCompanyExchange);
+                    FcStats fcStats = new FcStats
                     {
-                        var fcArrayData = atkArrays.GetNumberArrayData(51);
-                        FcStats fcStats = new FcStats
-                        {
-                            ContentId = localContentId,
-                            FcCredits = fcArrayData->IntArray[9]
-                        };
+                        ContentId = localContentId,
+                        FcCredits = fcArrayData->IntArray[9]
+                    };
 
-                        _pluginLog.Verbose($"Current FC credits: {fcStats.FcCredits:N0}");
-                        if (fcStats.FcCredits > 0)
+                    _pluginLog.Verbose($"Current FC credits: {fcStats.FcCredits:N0}");
+                    if (fcStats.FcCredits > 0)
+                    {
+                        if (_cache.TryGetValue(localContentId, out var existingStats))
                         {
-                            if (_cache.TryGetValue(localContentId, out var existingStats))
-                            {
-                                if (existingStats != fcStats)
-                                {
-                                    _cache[localContentId] = fcStats;
-                                    File.WriteAllText(
-                                        Path.Join(_pluginInterface.GetPluginConfigDirectory(),
-                                            $"f.{localContentId:X8}.json"),
-                                        JsonConvert.SerializeObject(fcStats));
-                                }
-                            }
-                            else
+                            if (existingStats != fcStats)
                             {
                                 _cache[localContentId] = fcStats;
                                 File.WriteAllText(
@@ -193,9 +180,17 @@ internal sealed class FcStatsCalculator : IDisposable
                                         $"f.{localContentId:X8}.json"),
                                     JsonConvert.SerializeObject(fcStats));
                             }
-
-                            return true;
                         }
+                        else
+                        {
+                            _cache[localContentId] = fcStats;
+                            File.WriteAllText(
+                                Path.Join(_pluginInterface.GetPluginConfigDirectory(),
+                                    $"f.{localContentId:X8}.json"),
+                                JsonConvert.SerializeObject(fcStats));
+                        }
+
+                        return true;
                     }
 
                     return false;
