@@ -1,0 +1,230 @@
+name: Auto Release on Version Bump
+
+on:
+  push:
+    branches: [ main ]
+    paths: 
+      - 'Influx/Influx.csproj'
+  workflow_dispatch:
+    inputs:
+      force_release:
+        description: 'Force create release even if tag exists'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  detect-version-change:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      should-release: ${{ steps.check-release.outputs.should-release }}
+      tag-exists: ${{ steps.check-tag.outputs.exists }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from Influx.csproj
+        id: get-version
+        run: |
+          # Extract version using xmllint for more reliable parsing
+          if command -v xmllint >/dev/null 2>&1; then
+            VERSION=$(xmllint --xpath "string(//PropertyGroup/Version)" Influx/Influx.csproj 2>/dev/null || true)
+          fi
+          
+          # Fallback to grep if xmllint fails or is not available
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -oP '<Version>\K[^<]+' Influx/Influx.csproj | head -1)
+          fi
+          
+          if [ -z "$VERSION" ]; then
+            echo "Error: Could not extract version from Influx/Influx.csproj"
+            exit 1
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Check if tag already exists
+        id: check-tag
+        run: |
+          TAG="v${{ steps.get-version.outputs.version }}"
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG$"; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag $TAG already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Tag $TAG does not exist"
+          fi
+
+      - name: Determine if release should be created
+        id: check-release
+        run: |
+          FORCE_RELEASE="${{ github.event.inputs.force_release }}"
+          TAG_EXISTS="${{ steps.check-tag.outputs.exists }}"
+          
+          if [ "$FORCE_RELEASE" = "true" ] || [ "$TAG_EXISTS" = "false" ]; then
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "Will create release"
+          else
+            echo "should-release=false" >> $GITHUB_OUTPUT
+            echo "Will not create release (tag exists and not forced)"
+          fi
+
+  build-and-release:
+    needs: detect-version-change
+    if: needs.detect-version-change.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.detect-version-change.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Download and setup Dalamud
+        run: |
+          echo "Downloading Dalamud..."
+          wget -q https://goatcorp.github.io/dalamud-distrib/stg/latest.zip -O dalamud.zip
+          unzip -q dalamud.zip -d .dalamud
+          echo "DALAMUD_HOME=$PWD/.dalamud/" >> $GITHUB_ENV
+
+      - name: Restore NuGet packages
+        run: |
+          dotnet restore /p:Configuration=Release --packages .nuget
+
+      - name: Build plugin
+        run: |
+          echo "Building plugin..."
+          dotnet build Influx/Influx.csproj \
+            -c Release \
+            -f net9.0-windows \
+            -p:DalamudLibPath=$DALAMUD_HOME \
+            -maxcpucount:1 \
+            --source $PWD/.nuget \
+            --no-restore \
+            --verbosity minimal
+
+      - name: Prepare release artifacts
+        run: |
+          echo "Preparing release artifacts..."
+          mkdir -p release
+          
+          # Check if build outputs exist
+          if [ -f "Influx/dist/Influx/latest.zip" ]; then
+            cp "Influx/dist/Influx/latest.zip" "release/latest.zip"
+            echo "Copied plugin zip"
+          else
+            echo "Warning: latest.zip not found"
+          fi
+          
+          if [ -f "Influx/dist/Influx/Influx.json" ]; then
+            cp "Influx/dist/Influx/Influx.json" "release/Influx.json"
+            echo "✓ Copied plugin manifest"
+          else
+            echo "Warning: Influx.json not found"
+          fi
+          
+          # List what we have
+          echo "Release artifacts:"
+          ls -la release/
+
+      - name: Generate checksums
+        run: |
+          cd release
+          for file in *.zip *.json; do
+            if [ -f "$file" ]; then
+              sha256sum "$file" > "$file.sha256"
+              echo "Generated checksum for $file"
+            fi
+          done
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag to compare against (before we create the new tag)
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "Generating changelog from $PREVIOUS_TAG to HEAD"
+            # Generate commit log since last tag with more detail
+            CHANGELOG=$(git log --pretty=format:"- %s (%h) by %an" ${PREVIOUS_TAG}..HEAD --no-merges)
+            COMMIT_COUNT=$(git rev-list --count ${PREVIOUS_TAG}..HEAD --no-merges)
+            echo "Found $COMMIT_COUNT commits since $PREVIOUS_TAG"
+          else
+            echo "No previous tag found, showing recent commits"
+            # Show last 10 commits if no previous tag
+            CHANGELOG=$(git log --pretty=format:"- %s (%h) by %an" -10 --no-merges)
+            COMMIT_COUNT=$(git rev-list --count HEAD --no-merges | head -10)
+          fi
+          
+          # If no commits, provide a default message
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="- Version bump to ${VERSION}"
+          fi
+          
+          # Save changelog to output (handle multiline)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        run: |
+          TAG="v${VERSION}"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Delete tag if it exists (for force release)
+          if [ "${{ needs.detect-version-change.outputs.tag-exists }}" = "true" ]; then
+            echo "Deleting existing tag $TAG"
+            git tag -d $TAG || true
+            git push origin :refs/tags/$TAG || true
+          fi
+          
+          git tag $TAG -m "Release version ${VERSION}"
+          git push origin $TAG
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: "Influx v${{ env.VERSION }}"
+          body: |
+            ## Influx v${{ env.VERSION }}
+            
+            This release was automatically created following a version bump.
+            
+            ### Installation Files
+            - `latest.zip` - **Plugin archive for installation**
+            - `Influx.json` - Plugin manifest
+            - `*.sha256` - Checksums for verification
+            
+            ### Manual Changelog
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ---
+            *Detailed changes and pull requests are listed below in the auto-generated release notes.*
+          files: |
+            release/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
