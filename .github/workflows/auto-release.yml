@@ -129,7 +129,7 @@ jobs:
           echo "Preparing release artifacts..."
           mkdir -p release
           
-          # Check if build outputs exist
+          # Check if build outputs exist and copy only specific files
           if [ -f "Influx/dist/Influx/latest.zip" ]; then
             cp "Influx/dist/Influx/latest.zip" "release/latest.zip"
             echo "Copied plugin zip"
@@ -139,53 +139,20 @@ jobs:
           
           if [ -f "Influx/dist/Influx/Influx.json" ]; then
             cp "Influx/dist/Influx/Influx.json" "release/Influx.json"
-            echo "✓ Copied plugin manifest"
+            echo "Copied plugin manifest"
           else
             echo "Warning: Influx.json not found"
           fi
           
-          # List what we have
-          echo "Release artifacts:"
+          # Verify only intended files are present
+          echo "Release artifacts (should only contain .zip and .json files):"
           ls -la release/
-
-      - name: Generate checksums
-        run: |
-          cd release
-          for file in *.zip *.json; do
-            if [ -f "$file" ]; then
-              sha256sum "$file" > "$file.sha256"
-              echo "Generated checksum for $file"
-            fi
-          done
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          # Get the previous tag to compare against (before we create the new tag)
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           
-          if [ -n "$PREVIOUS_TAG" ]; then
-            echo "Generating changelog from $PREVIOUS_TAG to HEAD"
-            # Generate commit log since last tag with more detail
-            CHANGELOG=$(git log --pretty=format:"- %s (%h) by %an" ${PREVIOUS_TAG}..HEAD --no-merges)
-            COMMIT_COUNT=$(git rev-list --count ${PREVIOUS_TAG}..HEAD --no-merges)
-            echo "Found $COMMIT_COUNT commits since $PREVIOUS_TAG"
-          else
-            echo "No previous tag found, showing recent commits"
-            # Show last 10 commits if no previous tag
-            CHANGELOG=$(git log --pretty=format:"- %s (%h) by %an" -10 --no-merges)
-            COMMIT_COUNT=$(git rev-list --count HEAD --no-merges | head -10)
-          fi
+          # Remove any potential source files that might have been copied accidentally
+          find release/ -name "*.cs" -o -name "*.csproj" -o -name "*.sln" -o -name "*.targets" -o -name "*.props" | xargs rm -f
           
-          # If no commits, provide a default message
-          if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="- Version bump to ${VERSION}"
-          fi
-          
-          # Save changelog to output (handle multiline)
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "Final release artifacts:"
+          ls -la release/
 
       - name: Create and push tag
         run: |
@@ -203,28 +170,22 @@ jobs:
           git tag $TAG -m "Release version ${VERSION}"
           git push origin $TAG
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ env.VERSION }}
-          name: "Influx v${{ env.VERSION }}"
-          body: |
-            ## Influx v${{ env.VERSION }}
-            
-            This release was automatically created following a version bump.
-            
-            ### Installation Files
-            - `latest.zip` - **Plugin archive for installation**
-            - `Influx.json` - Plugin manifest
-            - `*.sha256` - Checksums for verification
-            
-            ### Manual Changelog
-            ${{ steps.changelog.outputs.changelog }}
-            
-            ---
-            *Detailed changes and pull requests are listed below in the auto-generated release notes.*
-          files: |
-            release/*
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+      - name: Create GitHub Release (without source code archives)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create the release using GitHub CLI to have more control
+          gh release create "v${VERSION}" \
+            --title "Influx v${VERSION}" \
+            --notes "## Influx v${VERSION}
+
+          This release was automatically created following a version bump.
+
+          ### Installation Files
+          - \`latest.zip\` - **Plugin archive for installation**
+          - \`Influx.json\` - Plugin manifest
+
+          Please download the \`latest.zip\` file to install or update the plugin." \
+            --repo ${{ github.repository }} \
+            release/latest.zip \
+            release/Influx.json
