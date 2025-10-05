@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Reflection;
+using System.Threading;
 
 namespace Influx.AllaganTools;
 
@@ -24,6 +25,29 @@ internal sealed class ListService : IListService
     public FilterResult? GetFilterByKeyOrName(string keyOrName)
     {
         var f = _getListByKeyOrName.Invoke(_listService, [keyOrName]);
-        return f != null ? new FilterResult((IEnumerable)_refreshList.Invoke(_listFilterService, [f])!) : null;
+        if (f == null)
+            return null;
+
+        var parameters = _refreshList.GetParameters();
+
+        object refreshResult;
+        if (parameters.Length == 0)
+        {
+            refreshResult = _refreshList.Invoke(_listFilterService, Array.Empty<object>())!;
+        }
+        else if (parameters.Length == 1)
+        {
+            refreshResult = _refreshList.Invoke(_listFilterService, [f])!;
+        }
+        else if (parameters.Length == 2)
+        {
+            refreshResult = _refreshList.Invoke(_listFilterService, [f, CancellationToken.None])!;
+        }
+        else
+        {
+            throw new NotSupportedException($"RefreshList has {parameters.Length} parameters which is not supported");
+        }
+
+        return new FilterResult((IEnumerable)refreshResult);
     }
 }
