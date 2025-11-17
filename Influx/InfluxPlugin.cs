@@ -51,6 +51,11 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _pluginLog = pluginLog;
         DalamudReflector dalamudReflector = new DalamudReflector(pluginInterface, framework, pluginLog);
         _allaganToolsIpc = new AllaganToolsIpc(pluginInterface, chatGui, dalamudReflector, framework, _pluginLog);
+        _allaganToolsIpc.OnInitialized += () =>
+        {
+            _pluginLog.Information("Allagan Tools connected, uploading character data");
+            UpdateStatistics();
+        };
         _submarineTrackerIpc = new SubmarineTrackerIpc(dalamudReflector);
         _localStatsCalculator =
             new LocalStatsCalculator(pluginInterface, clientState, addonLifecycle, pluginLog, dataManager);

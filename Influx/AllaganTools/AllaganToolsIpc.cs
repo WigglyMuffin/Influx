@@ -23,6 +23,9 @@ internal sealed class AllaganToolsIpc : IDisposable
     private ICharacterMonitor _characters;
     private IInventoryMonitor _inventories;
     private IListService _lists;
+    private bool _isConfigured;
+
+    public event Action? OnInitialized;
 
     public AllaganToolsIpc(IDalamudPluginInterface pluginInterface, IChatGui chatGui, DalamudReflector dalamudReflector,
         IFramework framework, IPluginLog pluginLog)
@@ -50,15 +53,29 @@ internal sealed class AllaganToolsIpc : IDisposable
             if (isInitialized)
                 ConfigureIpc(true);
         }
-        catch (IpcNotReadyError e)
+        catch (IpcNotReadyError)
         {
-            _pluginLog.Error(e, "Not initializing ATools yet, ipc not ready");
+            _pluginLog.Information("Allagan Tools not ready yet, will initialize when it loads");
         }
     }
 
     private void ConfigureIpc(bool initialized)
     {
+        if (_isConfigured)
+            return;
+
         _pluginLog.Information("Configuring Allagan tools IPC");
+        TryConfigureIpc(0);
+    }
+
+    private void TryConfigureIpc(int attempt)
+    {
+        if (_isConfigured)
+            return;
+
+        const int maxAttempts = 10;
+        var delayMs = 100 + (attempt * 200); // Exponential backoff: 100ms, 300ms, 500ms, etc.
+
         _framework.RunOnTick(() =>
         {
             try
@@ -82,18 +99,38 @@ internal sealed class AllaganToolsIpc : IDisposable
                     _lists = new ListService(
                         GetService(it.GetType().Assembly.GetType("InventoryTools.Services.Interfaces.IListService")!),
                         GetService(it.GetType().Assembly.GetType("InventoryTools.Lists.ListFilterService")!));
+
+                    _isConfigured = true;
+                    _pluginLog.Information("Successfully configured Allagan Tools IPC");
+                    OnInitialized?.Invoke();
                 }
                 else
                 {
-                    _pluginLog.Warning("Reflection was unsuccessful");
+                    _pluginLog.Warning($"Reflection was unsuccessful (attempt {attempt + 1}/{maxAttempts})");
+                    if (attempt < maxAttempts - 1)
+                    {
+                        TryConfigureIpc(attempt + 1);
+                    }
+                    else
+                    {
+                        _pluginLog.Warning("Failed to configure Allagan Tools IPC after maximum attempts");
+                    }
                 }
             }
             catch (Exception e)
             {
-                _pluginLog.Error(e, "Could not initialize IPC");
-                _chatGui.PrintError(e.ToString());
+                _pluginLog.Error(e, $"Could not initialize IPC (attempt {attempt + 1}/{maxAttempts})");
+                if (attempt < maxAttempts - 1)
+                {
+                    TryConfigureIpc(attempt + 1);
+                }
+                else
+                {
+                    _pluginLog.Error("Failed to configure Allagan Tools IPC after maximum attempts");
+                    _chatGui.PrintError($"Influx: Failed to connect to Allagan Tools after {maxAttempts} attempts");
+                }
             }
-        }, TimeSpan.FromMilliseconds(100));
+        }, TimeSpan.FromMilliseconds(delayMs));
     }
 
     public Dictionary<string, string> GetSearchFilters()
@@ -153,6 +190,8 @@ internal sealed class AllaganToolsIpc : IDisposable
         _characters = new UnavailableCharacterMonitor(_pluginLog);
         _inventories = new UnavailableInventoryMonitor(_pluginLog);
         _lists = new UnavailableListService(_pluginLog);
+        _isConfigured = false;
+        OnInitialized = null;
     }
 
     private sealed class InventoryWrapper(IEnumerable<InventoryItem> items)
