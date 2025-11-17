@@ -55,6 +55,18 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         {
             _pluginLog.Information("Allagan Tools connected, uploading character data");
             UpdateStatistics();
+
+            // If update failed due to login state, schedule a retry
+            if (!_clientState.IsLoggedIn)
+            {
+                _pluginLog.Information("Not logged in yet, will retry when login completes");
+                void OnLogin()
+                {
+                    _clientState.Login -= OnLogin;
+                    UpdateStatistics();
+                }
+                _clientState.Login += OnLogin;
+            }
         };
         _submarineTrackerIpc = new SubmarineTrackerIpc(dalamudReflector);
         _localStatsCalculator =
@@ -118,10 +130,15 @@ internal sealed class InfluxPlugin : IDalamudPlugin
     {
         lock (_lock)
         {
-            if (!_clientState.IsLoggedIn ||
-                _configuration.IncludedCharacters.All(x => x.LocalContentId != _clientState.LocalContentId))
+            if (!_clientState.IsLoggedIn)
             {
-                _pluginLog.Verbose("Influx: not logged in or not enabled for this character");
+                _pluginLog.Verbose("Influx: not logged in");
+                return;
+            }
+
+            if (_configuration.IncludedCharacters.All(x => x.LocalContentId != _clientState.LocalContentId))
+            {
+                _pluginLog.Verbose("Influx: not enabled for this character");
                 return;
             }
 
