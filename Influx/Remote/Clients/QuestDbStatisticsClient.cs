@@ -23,8 +23,9 @@ internal sealed class QuestDbStatisticsClient : BaseStatisticsClient
         Configuration configuration,
         GameData gameData,
         IClientState clientState,
+        IPlayerState playerState,
         IPluginLog pluginLog)
-        : base(chatGui, configuration, gameData, clientState, pluginLog)
+        : base(chatGui, configuration, gameData, clientState, playerState, pluginLog)
     {
         _pluginLog = pluginLog;
         _serverConfiguration = configuration.Server.Copy();

@@ -20,6 +20,7 @@ internal sealed class FcStatsCalculator : IDisposable
 {
     private readonly IDalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
+    private readonly IPlayerState _playerState;
     private readonly IAddonLifecycle _addonLifecycle;
     private readonly IGameGui _gameGui;
     private readonly IFramework _framework;
@@ -35,6 +36,7 @@ internal sealed class FcStatsCalculator : IDisposable
         IDalamudPlugin plugin,
         IDalamudPluginInterface pluginInterface,
         IClientState clientState,
+        IPlayerState playerState,
         IAddonLifecycle addonLifecycle,
         IGameGui gameGui,
         IFramework framework,
@@ -43,6 +45,7 @@ internal sealed class FcStatsCalculator : IDisposable
     {
         _pluginInterface = pluginInterface;
         _clientState = clientState;
+        _playerState = playerState;
         _addonLifecycle = addonLifecycle;
         _gameGui = gameGui;
         _framework = framework;
@@ -77,7 +80,7 @@ internal sealed class FcStatsCalculator : IDisposable
     private unsafe void CheckCharacterPostProcess()
     {
         bool includeFc = _configuration.IncludedCharacters.Any(x =>
-            x.LocalContentId == _clientState.LocalContentId &&
+            x.LocalContentId == _playerState.ContentId &&
             x.IncludeFreeCompany);
         if (!includeFc)
             return;

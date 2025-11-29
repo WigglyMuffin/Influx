@@ -21,6 +21,8 @@ internal sealed class ConfigurationWindow : LWindow, IDisposable
 
     private readonly IDalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
+    private readonly IPlayerState _playerState;
+    private readonly IObjectTable _objectTable;
     private readonly Configuration _configuration;
     private readonly AllaganToolsIpc _allaganToolsIpc;
     private string[] _filterNames = [];
@@ -29,11 +31,14 @@ internal sealed class ConfigurationWindow : LWindow, IDisposable
     private (bool Success, string Error)? _testConnectionResult;
 
     public ConfigurationWindow(IDalamudPluginInterface pluginInterface, IClientState clientState,
-        Configuration configuration, AllaganToolsIpc allaganToolsIpc)
+        IPlayerState playerState, IObjectTable objectTable, Configuration configuration,
+        AllaganToolsIpc allaganToolsIpc)
         : base("Configuration###InfluxConfiguration")
     {
         _pluginInterface = pluginInterface;
         _clientState = clientState;
+        _playerState = playerState;
+        _objectTable = objectTable;
         _configuration = configuration;
         _allaganToolsIpc = allaganToolsIpc;
     }
@@ -202,15 +207,16 @@ internal sealed class ConfigurationWindow : LWindow, IDisposable
             Save(true);
         }
 
-        if (_clientState is { IsLoggedIn: true, LocalContentId: > 0, LocalPlayer.HomeWorld.RowId: > 0 })
+        var localPlayer = _objectTable.LocalPlayer;
+        if (_clientState.IsLoggedIn && _playerState.ContentId > 0 && localPlayer?.HomeWorld.RowId > 0)
         {
-            string worldName = _clientState.LocalPlayer.HomeWorld.Value.Name.ToString();
+            string worldName = localPlayer.HomeWorld.Value.Name.ToString();
             ImGui.TextWrapped(
-                $"Current Character: {_clientState.LocalPlayer.Name} @ {worldName} ({_clientState.LocalContentId:X})");
+                $"Current Character: {localPlayer.Name} @ {worldName} ({_playerState.ContentId:X})");
 
             ImGui.Indent(30);
             Configuration.CharacterInfo? includedCharacter =
-                _configuration.IncludedCharacters.FirstOrDefault(x => x.LocalContentId == _clientState.LocalContentId);
+                _configuration.IncludedCharacters.FirstOrDefault(x => x.LocalContentId == _playerState.ContentId);
             if (includedCharacter != null)
             {
                 ImGui.TextColored(ImGuiColors.HealerGreen, "This character is currently included.");
@@ -227,7 +233,7 @@ internal sealed class ConfigurationWindow : LWindow, IDisposable
                 if (ImGui.Button("Remove inclusion"))
                 {
                     var characterInfo =
-                        _configuration.IncludedCharacters.First(c => c.LocalContentId == _clientState.LocalContentId);
+                        _configuration.IncludedCharacters.First(c => c.LocalContentId == _playerState.ContentId);
                     _configuration.IncludedCharacters.Remove(characterInfo);
                     Save();
                 }
@@ -240,8 +246,8 @@ internal sealed class ConfigurationWindow : LWindow, IDisposable
                 {
                     _configuration.IncludedCharacters.Add(new Configuration.CharacterInfo
                     {
-                        LocalContentId = _clientState.LocalContentId,
-                        CachedPlayerName = _clientState.LocalPlayer?.Name.ToString() ?? "??",
+                        LocalContentId = _playerState.ContentId,
+                        CachedPlayerName = localPlayer?.Name.ToString() ?? "??",
                         CachedWorldName = worldName,
                     });
                     Save();

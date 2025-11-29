@@ -18,6 +18,7 @@ internal abstract class BaseStatisticsClient : IDisposable
     private readonly Configuration _configuration;
     private readonly GameData _gameData;
     private readonly IClientState _clientState;
+    private readonly IPlayerState _playerState;
     private readonly IPluginLog _pluginLog;
 
     protected BaseStatisticsClient(
@@ -25,12 +26,14 @@ internal abstract class BaseStatisticsClient : IDisposable
         Configuration configuration,
         GameData gameData,
         IClientState clientState,
+        IPlayerState playerState,
         IPluginLog pluginLog)
     {
         _chatGui = chatGui;
         _configuration = configuration;
         _gameData = gameData;
         _clientState = clientState;
+        _playerState = playerState;
         _pluginLog = pluginLog;
     }
 
@@ -38,7 +41,7 @@ internal abstract class BaseStatisticsClient : IDisposable
 
     public void OnStatisticsUpdate(StatisticsUpdate update)
     {
-        if (!Enabled || _configuration.IncludedCharacters.All(x => x.LocalContentId != _clientState.LocalContentId))
+        if (!Enabled || _configuration.IncludedCharacters.All(x => x.LocalContentId != _playerState.ContentId))
             return;
 
         DateTime date = DateTime.UtcNow;

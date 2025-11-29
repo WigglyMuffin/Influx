@@ -40,6 +40,7 @@ internal sealed class LocalStatsCalculator : IDisposable
 
     private readonly IDalamudPluginInterface _pluginInterface;
     private readonly IClientState _clientState;
+    private readonly IPlayerState _playerState;
     private readonly IAddonLifecycle _addonLifecycle;
     private readonly IPluginLog _pluginLog;
     private readonly Dictionary<ulong, LocalStats> _cache = new();
@@ -53,12 +54,14 @@ internal sealed class LocalStatsCalculator : IDisposable
     public LocalStatsCalculator(
         IDalamudPluginInterface pluginInterface,
         IClientState clientState,
+        IPlayerState playerState,
         IAddonLifecycle addonLifecycle,
         IPluginLog pluginLog,
         IDataManager dataManager)
     {
         _pluginInterface = pluginInterface;
         _clientState = clientState;
+        _playerState = playerState;
         _addonLifecycle = addonLifecycle;
         _pluginLog = pluginLog;
 
@@ -92,7 +95,7 @@ internal sealed class LocalStatsCalculator : IDisposable
 
             while (msq.FirstOrDefault(quest => quest.PreviousQuestIds.Count == 0 ||
                                                quest.PreviousQuestIds.All(x => sortedQuests.Any(y => x == y.RowId))) is
-                   { } qq)
+                { } qq)
             {
                 sortedQuests.Add(qq);
                 msq.Remove(qq);
@@ -167,14 +170,14 @@ internal sealed class LocalStatsCalculator : IDisposable
 
     private unsafe void UpdateStatistics()
     {
-        var localContentId = _clientState.LocalContentId;
+        var localContentId = _playerState.ContentId;
         if (localContentId == 0)
         {
             _pluginLog.Warning("No local character id");
             return;
         }
 
-        _pluginLog.Information($"Updating character {_clientState.LocalContentId}");
+        _pluginLog.Information($"Updating character {_playerState.ContentId}");
         try
         {
             PlayerState* playerState = PlayerState.Instance();

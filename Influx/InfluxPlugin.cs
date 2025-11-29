@@ -26,6 +26,8 @@ internal sealed class InfluxPlugin : IDalamudPlugin
     private readonly IDalamudPluginInterface _pluginInterface;
     private readonly Configuration _configuration;
     private readonly IClientState _clientState;
+    private readonly IPlayerState _playerState;
+    private readonly IObjectTable _objectTable;
     private readonly ICommandManager _commandManager;
     private readonly ICondition _condition;
     private readonly IPluginLog _pluginLog;
@@ -39,13 +41,16 @@ internal sealed class InfluxPlugin : IDalamudPlugin
     private readonly ConfigurationWindow _configurationWindow;
     private readonly Timer _timer;
 
-    public InfluxPlugin(IDalamudPluginInterface pluginInterface, IClientState clientState, IPluginLog pluginLog,
-        ICommandManager commandManager, IChatGui chatGui, IDataManager dataManager, IFramework framework,
-        IAddonLifecycle addonLifecycle, IGameGui gameGui, ICondition condition)
+    public InfluxPlugin(IDalamudPluginInterface pluginInterface, IClientState clientState, IPlayerState playerState,
+        IObjectTable objectTable, IPluginLog pluginLog, ICommandManager commandManager, IChatGui chatGui,
+        IDataManager dataManager, IFramework framework, IAddonLifecycle addonLifecycle, IGameGui gameGui,
+        ICondition condition)
     {
         _pluginInterface = pluginInterface;
         _configuration = LoadConfig();
         _clientState = clientState;
+        _playerState = playerState;
+        _objectTable = objectTable;
         _commandManager = commandManager;
         _condition = condition;
         _pluginLog = pluginLog;
@@ -70,16 +75,16 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         };
         _submarineTrackerIpc = new SubmarineTrackerIpc(dalamudReflector);
         _localStatsCalculator =
-            new LocalStatsCalculator(pluginInterface, clientState, addonLifecycle, pluginLog, dataManager);
-        _fcStatsCalculator = new FcStatsCalculator(this, pluginInterface, clientState, addonLifecycle, gameGui,
+            new LocalStatsCalculator(pluginInterface, clientState, playerState, addonLifecycle, pluginLog, dataManager);
+        _fcStatsCalculator = new FcStatsCalculator(this, pluginInterface, clientState, playerState, addonLifecycle, gameGui,
             framework, _configuration, pluginLog);
         _statisticsClientManager =
-            new StatisticsClientManager(chatGui, _configuration, dataManager, clientState, _pluginLog);
+            new StatisticsClientManager(chatGui, _configuration, dataManager, clientState, playerState, _pluginLog);
 
         _windowSystem = new WindowSystem(typeof(InfluxPlugin).FullName);
         _statisticsWindow = new StatisticsWindow();
         _windowSystem.AddWindow(_statisticsWindow);
-        _configurationWindow = new ConfigurationWindow(_pluginInterface, clientState, _configuration, _allaganToolsIpc);
+        _configurationWindow = new ConfigurationWindow(_pluginInterface, clientState, playerState, objectTable, _configuration, _allaganToolsIpc);
         _configurationWindow.ConfigUpdated += (_, _) => _statisticsClientManager.UpdateClient();
         _configurationWindow.TestConnection = _statisticsClientManager.TestConnection;
         _windowSystem.AddWindow(_configurationWindow);
@@ -102,7 +107,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         _pluginInterface.UiBuilder.OpenMainUi += _statisticsWindow.Toggle;
         _condition.ConditionChange += UpdateOnLogout;
         _clientState.Login += AutoEnrollCharacter;
-        
+
     }
 
     private Configuration LoadConfig()
@@ -136,7 +141,7 @@ internal sealed class InfluxPlugin : IDalamudPlugin
                 return;
             }
 
-            if (_configuration.IncludedCharacters.All(x => x.LocalContentId != _clientState.LocalContentId))
+            if (_configuration.IncludedCharacters.All(x => x.LocalContentId != _playerState.ContentId))
             {
                 _pluginLog.Verbose("Influx: not enabled for this character");
                 return;
@@ -234,15 +239,16 @@ internal sealed class InfluxPlugin : IDalamudPlugin
         if (_configuration.AutoEnrollCharacters)
         {
             Configuration.CharacterInfo? includedCharacter =
-                _configuration.IncludedCharacters.FirstOrDefault(x => x.LocalContentId == _clientState.LocalContentId);
+                _configuration.IncludedCharacters.FirstOrDefault(x => x.LocalContentId == _playerState.ContentId);
 
             if (includedCharacter == null)
             {
+                var localPlayer = _objectTable.LocalPlayer;
                 _configuration.IncludedCharacters.Add(new Configuration.CharacterInfo
                 {
-                    LocalContentId = _clientState.LocalContentId,
-                    CachedPlayerName = _clientState.LocalPlayer?.Name.ToString() ?? "??",
-                    CachedWorldName = _clientState.LocalPlayer?.HomeWorld.Value.Name.ToString(),
+                    LocalContentId = _playerState.ContentId,
+                    CachedPlayerName = localPlayer?.Name.ToString() ?? "??",
+                    CachedWorldName = localPlayer?.HomeWorld.Value.Name.ToString(),
                 });
                 _pluginInterface.SavePluginConfig(_configuration);
             }

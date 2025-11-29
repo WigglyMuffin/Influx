@@ -12,6 +12,7 @@ internal sealed class StatisticsClientManager : IDisposable
     private readonly Configuration _configuration;
     private readonly GameData _gameData;
     private readonly IClientState _clientState;
+    private readonly IPlayerState _playerState;
     private readonly IPluginLog _pluginLog;
 
     private BaseStatisticsClient? _statisticsClient;
@@ -21,12 +22,14 @@ internal sealed class StatisticsClientManager : IDisposable
         Configuration configuration,
         IDataManager dataManager,
         IClientState clientState,
+        IPlayerState playerState,
         IPluginLog pluginLog)
     {
         _chatGui = chatGui;
         _configuration = configuration;
         _gameData = new GameData(dataManager);
         _clientState = clientState;
+        _playerState = playerState;
         _pluginLog = pluginLog;
 
         UpdateClient();
@@ -51,9 +54,9 @@ internal sealed class StatisticsClientManager : IDisposable
         BaseStatisticsClient? newClient = _configuration.Server.Type switch
         {
             Configuration.ERemoteType.InfluxDb => new InfluxDbStatisticsClient(_chatGui, _configuration, _gameData,
-                _clientState, _pluginLog),
+                _clientState, _playerState, _pluginLog),
             Configuration.ERemoteType.QuestDb => new QuestDbStatisticsClient(_chatGui, _configuration, _gameData,
-                _clientState, _pluginLog),
+                _clientState, _playerState, _pluginLog),
             _ => null
         };
 
