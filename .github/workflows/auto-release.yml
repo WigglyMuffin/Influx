@@ -86,8 +86,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          token: ${{ secrets.LLIB_FGPAT }}
+          submodules: false
+
+      - name: Configure git credentials for LLib submodule
+        run: |
+          git config --global url."https://${{ secrets.LLIB_FGPAT }}@github.com/".insteadOf "https://github.com/"
+          
+      - name: Checkout submodules
+        run: |
+          git submodule update --init --recursive
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
