@@ -112,7 +112,7 @@ jobs:
       - name: Download and setup Dalamud
         run: |
           echo "Downloading Dalamud..."
-          wget -q https://goatcorp.github.io/dalamud-distrib/stg/latest.zip -O dalamud.zip
+          wget -q https://goatcorp.github.io/dalamud-distrib/latest.zip -O dalamud.zip
           unzip -q dalamud.zip -d .dalamud
           echo "DALAMUD_HOME=$PWD/.dalamud/" >> $GITHUB_ENV
 
