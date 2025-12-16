@@ -1,18 +1,18 @@
 {
   "version": 1,
   "dependencies": {
-    "net9.0-windows7.0": {
+    "net10.0-windows7.0": {
       "DalamudPackager": {
         "type": "Direct",
-        "requested": "[13.1.0, )",
-        "resolved": "13.1.0",
-        "contentHash": "XdoNhJGyFby5M/sdcRhnc5xTop9PHy+H50PTWpzLhJugjB19EDBiHD/AsiDF66RETM+0qKUdJBZrNuebn7qswQ=="
+        "requested": "[14.0.0, )",
+        "resolved": "14.0.0",
+        "contentHash": "9c1q/eAeAs82mkQWBOaCvbt3GIQxAIadz5b/7pCXDIy9nHPtnRc+tDXEvKR+M36Wvi7n+qBTevRupkLUQp6DFA=="
       },
       "DotNet.ReproducibleBuilds": {
         "type": "Direct",
-        "requested": "[1.2.25, )",
-        "resolved": "1.2.25",
-        "contentHash": "xCXiw7BCxHJ8pF6wPepRUddlh2dlQlbr81gXA72hdk4FLHkKXas7EH/n+fk5UCA/YfMqG1Z6XaPiUjDbUNBUzg=="
+        "requested": "[1.2.39, )",
+        "resolved": "1.2.39",
+        "contentHash": "fcFN01tDTIQqDuTwr1jUQK/geofiwjG5DycJQOnC72i1SsLAk1ELe+apBOuZ11UMQG8YKFZG1FgvjZPbqHyatg=="
       },
       "InfluxDB.Client": {
         "type": "Direct",
@@ -24,7 +24,6 @@
           "JsonSubTypes": "2.0.1",
           "Microsoft.Extensions.ObjectPool": "8.0.8",
           "Microsoft.Net.Http.Headers": "2.2.8",
-          "System.Collections.Immutable": "8.0.0",
           "System.Configuration.ConfigurationManager": "8.0.0",
           "System.Reactive": "6.0.1"
         }
@@ -94,19 +93,14 @@
       "Microsoft.Extensions.Primitives": {
         "type": "Transitive",
         "resolved": "2.2.0",
-        "contentHash": "azyQtqbm4fSaDzZHD/J+V6oWMFaf2tWP4WEGIYePLCMw3+b2RQdj9ybgbQyjCshcitQKQ4lEDOZjmSlTTrHxUg==",
-        "dependencies": {
-          "System.Memory": "4.5.1",
-          "System.Runtime.CompilerServices.Unsafe": "4.5.1"
-        }
+        "contentHash": "azyQtqbm4fSaDzZHD/J+V6oWMFaf2tWP4WEGIYePLCMw3+b2RQdj9ybgbQyjCshcitQKQ4lEDOZjmSlTTrHxUg=="
       },
       "Microsoft.Net.Http.Headers": {
         "type": "Transitive",
         "resolved": "2.2.8",
         "contentHash": "wHdwMv0QDDG2NWDSwax9cjkeQceGC1Qq53a31+31XpvTXVljKXRjWISlMoS/wZYKiqdqzuEvKFKwGHl+mt2jCA==",
         "dependencies": {
-          "Microsoft.Extensions.Primitives": "2.2.0",
-          "System.Buffers": "4.5.0"
+          "Microsoft.Extensions.Primitives": "2.2.0"
         }
       },
       "Microsoft.SourceLink.Common": {
@@ -122,10 +116,7 @@
       "NodaTime": {
         "type": "Transitive",
         "resolved": "3.1.11",
-        "contentHash": "AYSiCHp1PLzWKVf7hEL3MJ0q9kzOWMNIaTVysXk4XKrDBzK5PF2wpd4LsAl+EIQ2Hbvu+vw4oFaexcXzCuY1lQ==",
-        "dependencies": {
-          "System.Runtime.CompilerServices.Unsafe": "4.7.1"
-        }
+        "contentHash": "AYSiCHp1PLzWKVf7hEL3MJ0q9kzOWMNIaTVysXk4XKrDBzK5PF2wpd4LsAl+EIQ2Hbvu+vw4oFaexcXzCuY1lQ=="
       },
       "NodaTime.Serialization.JsonNet": {
         "type": "Transitive",
@@ -141,16 +132,6 @@
         "resolved": "112.0.0",
         "contentHash": "vezxJ6DLk0eDx+rmXwVHQvJ3elZCJfnLd8neRrkA+IvTs9falf2CEAolsjI1YKkkHTOvG13xWTnHK7gU0zgaaw=="
       },
-      "System.Buffers": {
-        "type": "Transitive",
-        "resolved": "4.5.0",
-        "contentHash": "pL2ChpaRRWI/p4LXyy4RgeWlYF2sgfj/pnVMvBqwNFr5cXg7CXNnWZWxrOONLg8VGdFB8oB+EG2Qw4MLgTOe+A=="
-      },
-      "System.Collections.Immutable": {
-        "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "AurL6Y5BA1WotzlEvVaIDpqzpIPvYnnldxru8oXJU2yFxFUy3+pNXjXd1ymO+RA0rq0+590Q8gaz2l3Sr7fmqg=="
-      },
       "System.Configuration.ConfigurationManager": {
         "type": "Transitive",
         "resolved": "8.0.0",
@@ -165,20 +146,10 @@
         "resolved": "8.0.0",
         "contentHash": "fdYxcRjQqTTacKId/2IECojlDSFvp7LP5N78+0z/xH7v/Tuw5ZAxu23Y6PTCRinqyu2ePx+Gn1098NC6jM6d+A=="
       },
-      "System.Memory": {
-        "type": "Transitive",
-        "resolved": "4.5.1",
-        "contentHash": "sDJYJpGtTgx+23Ayu5euxG5mAXWdkDb4+b0rD0Cab0M1oQS9H0HXGPriKcqpXuiJDTV7fTp/d+fMDJmnr6sNvA=="
-      },
       "System.Reactive": {
         "type": "Transitive",
         "resolved": "6.0.1",
         "contentHash": "rHaWtKDwCi9qJ3ObKo8LHPMuuwv33YbmQi7TcUK1C264V3MFnOr5Im7QgCTdLniztP3GJyeiSg5x8NqYJFqRmg=="
-      },
-      "System.Runtime.CompilerServices.Unsafe": {
-        "type": "Transitive",
-        "resolved": "4.7.1",
-        "contentHash": "zOHkQmzPCn5zm/BH+cxC1XbUS3P4Yoi3xzW7eRgVpDR2tPGSzyMZ17Ig1iRkfJuY0nhxkQQde8pgePNiA7z7TQ=="
       },
       "System.Security.Cryptography.ProtectedData": {
         "type": "Transitive",
@@ -194,7 +165,7 @@
       "llib": {
         "type": "Project",
         "dependencies": {
-          "DalamudPackager": "[13.1.0, )",
+          "DalamudPackager": "[14.0.0, )",
           "JetBrains.Annotations": "[2024.3.0, )"
         }
       }
