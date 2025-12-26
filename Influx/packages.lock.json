@@ -4,9 +4,9 @@
     "net10.0-windows7.0": {
       "DalamudPackager": {
         "type": "Direct",
-        "requested": "[14.0.0, )",
-        "resolved": "14.0.0",
-        "contentHash": "9c1q/eAeAs82mkQWBOaCvbt3GIQxAIadz5b/7pCXDIy9nHPtnRc+tDXEvKR+M36Wvi7n+qBTevRupkLUQp6DFA=="
+        "requested": "[14.0.1, )",
+        "resolved": "14.0.1",
+        "contentHash": "y0WWyUE6dhpGdolK3iKgwys05/nZaVf4ZPtIjpLhJBZvHxkkiE23zYRo7K7uqAgoK/QvK5cqF6l3VG5AbgC6KA=="
       },
       "DotNet.ReproducibleBuilds": {
         "type": "Direct",
@@ -57,8 +57,8 @@
       },
       "ECommons": {
         "type": "Transitive",
-        "resolved": "3.0.1.5",
-        "contentHash": "dUbgHV16y3nq/PgEg244IpBAuP0FQfrBFyrlNDfSkeNrB7Ze7WqOneGP+Nuorr1hLv0p2E2nyrNvFp8mJuKDWQ=="
+        "resolved": "3.1.0.1",
+        "contentHash": "FFpTsFd3jZMAX8becFBr/yPlKwkZT0PpuH3KGKPwTMQhtTJfvz4w6exiZmNwk5fuar5FhCDxjpb5BYsq87JsbQ=="
       },
       "InfluxDB.Client.Core": {
         "type": "Transitive",
@@ -159,13 +159,13 @@
       "autoretainerapi": {
         "type": "Project",
         "dependencies": {
-          "ECommons": "[3.0.1.5, )"
+          "ECommons": "[3.1.0.1, )"
         }
       },
       "llib": {
         "type": "Project",
         "dependencies": {
-          "DalamudPackager": "[14.0.0, )",
+          "DalamudPackager": "[14.0.1, )",
           "JetBrains.Annotations": "[2024.3.0, )"
         }
       }
