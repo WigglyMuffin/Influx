@@ -2,7 +2,7 @@
     <PropertyGroup>
 		<TargetFramework>net10.0-windows</TargetFramework>
 		<LangVersion>14</LangVersion>
-        <Version>7.4.0</Version>
+        <Version>7.4.1</Version>
         <OutputPath>dist</OutputPath>
     </PropertyGroup>
 
