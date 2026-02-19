@@ -1,0 +1,78 @@
+name: Testing Release (Public Mirror)
+
+# ============================================================================
+# Plugin Configuration
+# ============================================================================
+env:
+  PLUGIN_NAME: "Influx"
+
+# Triggered by Influx-private via repository_dispatch after promoting a testing release
+on:
+  repository_dispatch:
+    types: [promote-release]
+
+permissions:
+  contents: write
+
+jobs:
+  # ================================================================
+  # Promote: convert a mirrored testing pre-release to full release
+  # ================================================================
+  promote:
+    if: github.event.action == 'promote-release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout for tag operations
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Promote pre-release to full release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ github.event.client_payload.version }}"
+          TESTING_TAG="testing-v${VERSION}"
+          STABLE_TAG="v${VERSION}"
+
+          echo "Promoting mirrored ${TESTING_TAG} to stable release ${STABLE_TAG}..."
+
+          # Get the testing release ID
+          RELEASE_ID=$(gh api "repos/${{ github.repository }}/releases/tags/${TESTING_TAG}" --jq '.id' 2>/dev/null)
+          if [ -z "$RELEASE_ID" ]; then
+            echo "Error: Mirrored testing release $TESTING_TAG not found"
+            exit 1
+          fi
+
+          # Create the new stable tag pointing to the same commit
+          TESTING_COMMIT=$(git rev-list -n 1 "$TESTING_TAG" 2>/dev/null || echo "")
+          if [ -z "$TESTING_COMMIT" ]; then
+            echo "Fetching tag from remote..."
+            git fetch origin "refs/tags/${TESTING_TAG}:refs/tags/${TESTING_TAG}"
+            TESTING_COMMIT=$(git rev-list -n 1 "$TESTING_TAG")
+          fi
+
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag "$STABLE_TAG" "$TESTING_COMMIT" -m "Release version ${VERSION}" 2>/dev/null || true
+          git push origin "$STABLE_TAG" 2>/dev/null || true
+
+          # Patch the release: flip prerelease flag, update tag, title, and notes
+          gh api "repos/${{ github.repository }}/releases/${RELEASE_ID}" \
+            --method PATCH \
+            -f tag_name="${STABLE_TAG}" \
+            -f name="${{ env.PLUGIN_NAME }} v${VERSION}" \
+            -f body="## ${{ env.PLUGIN_NAME }} v${VERSION}
+
+          Promoted from testing release.
+
+          ### Installation Files
+          - \`latest.zip\` - **Plugin archive for installation**
+          - \`${{ env.PLUGIN_NAME }}.json\` - Plugin manifest" \
+            -F prerelease=false
+
+          # Clean up the old testing tag
+          git push origin ":refs/tags/${TESTING_TAG}" 2>/dev/null || true
+          git tag -d "$TESTING_TAG" 2>/dev/null || true
+
+          echo "Successfully promoted mirrored release to ${STABLE_TAG} (download counts preserved)"

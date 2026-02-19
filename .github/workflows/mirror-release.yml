@@ -1,0 +1,334 @@
+name: Mirror Releases from Private Repo
+
+# ============================================================================
+# Plugin Configuration
+# ============================================================================
+env:
+  PRIVATE_REPO: "WigglyCorp/Influx-private"
+  PRIVATE_PAT_NAME: "INFLUX_PAT"
+
+on:
+  repository_dispatch:
+    types: [mirror-release]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Specific release tag to mirror'
+        required: false
+        type: string
+      force_release:
+        description: 'Force create release even if tag exists'
+        required: false
+        default: false
+        type: boolean
+      check_for_new:
+        description: 'Check for new releases and mirror if found'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  check-for-new-releases:
+    runs-on: ubuntu-latest
+    outputs:
+      has-new-release: ${{ steps.compare-releases.outputs.has-new-release }}
+      latest-private-tag: ${{ steps.get-private-latest.outputs.tag_name }}
+      should-mirror: ${{ steps.compare-releases.outputs.should-mirror }}
+    steps:
+      - name: Checkout public repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Get latest release from private repo
+        id: get-private-latest
+        env:
+          PRIVATE_TOKEN: ${{ secrets[env.PRIVATE_PAT_NAME] }}
+        run: |
+          RELEASE_URL="https://api.github.com/repos/${{ env.PRIVATE_REPO }}/releases/latest"
+
+          echo "Checking for latest release in private repo..."
+
+          # Fetch release information
+          HTTP_STATUS=$(curl -s -w "%{http_code}" -H "Authorization: token $PRIVATE_TOKEN" "$RELEASE_URL" -o private_release.json)
+
+          if [ "$HTTP_STATUS" -eq 404 ]; then
+            echo "No releases found in private repo"
+            echo "tag_name=" >> $GITHUB_OUTPUT
+            exit 0
+          elif [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "Error: API request failed with status $HTTP_STATUS"
+            exit 1
+          fi
+
+          PRIVATE_TAG=$(cat private_release.json | jq -r '.tag_name // ""')
+          PRIVATE_PUBLISHED=$(cat private_release.json | jq -r '.published_at // ""')
+
+          echo "tag_name=$PRIVATE_TAG" >> $GITHUB_OUTPUT
+          echo "published_at=$PRIVATE_PUBLISHED" >> $GITHUB_OUTPUT
+          echo "Latest private repo release: $PRIVATE_TAG (published: $PRIVATE_PUBLISHED)"
+
+      - name: Get latest release from public repo
+        id: get-public-latest
+        run: |
+          echo "Checking for latest release in public repo..."
+
+          PUBLIC_TAG=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/latest" | \
+            jq -r '.tag_name // ""')
+
+          echo "tag_name=$PUBLIC_TAG" >> $GITHUB_OUTPUT
+          echo "Latest public repo release: $PUBLIC_TAG"
+
+      - name: Compare releases and determine if mirroring is needed
+        id: compare-releases
+        env:
+          PRIVATE_TAG: ${{ steps.get-private-latest.outputs.tag_name }}
+          PUBLIC_TAG: ${{ steps.get-public-latest.outputs.tag_name }}
+          FORCE_RELEASE: ${{ github.event.inputs.force_release || github.event.client_payload.force_release || 'false' }}
+          SPECIFIC_TAG: ${{ github.event.inputs.release_tag || github.event.client_payload.release_tag || '' }}
+          CHECK_FOR_NEW: ${{ github.event.inputs.check_for_new || github.event.client_payload.check_for_new || 'true' }}
+        run: |
+          echo "Private repo latest: '$PRIVATE_TAG'"
+          echo "Public repo latest: '$PUBLIC_TAG'"
+
+          # If specific tag is requested, always mirror it
+          if [ -n "$SPECIFIC_TAG" ]; then
+            echo "has-new-release=true" >> $GITHUB_OUTPUT
+            echo "should-mirror=true" >> $GITHUB_OUTPUT
+            echo "Will mirror specific tag: $SPECIFIC_TAG"
+            exit 0
+          fi
+
+          # If force release is enabled, mirror the latest
+          if [ "$FORCE_RELEASE" = "true" ]; then
+            echo "has-new-release=true" >> $GITHUB_OUTPUT
+            echo "should-mirror=true" >> $GITHUB_OUTPUT
+            echo "Force release enabled - will mirror latest"
+            exit 0
+          fi
+
+          # If no private release exists, nothing to do
+          if [ -z "$PRIVATE_TAG" ]; then
+            echo "has-new-release=false" >> $GITHUB_OUTPUT
+            echo "should-mirror=false" >> $GITHUB_OUTPUT
+            echo "No releases in private repo"
+            exit 0
+          fi
+
+          # Compare tags to see if there's a new release
+          if [ "$PRIVATE_TAG" != "$PUBLIC_TAG" ]; then
+            echo "has-new-release=true" >> $GITHUB_OUTPUT
+            echo "should-mirror=true" >> $GITHUB_OUTPUT
+            echo "New release detected! Private: $PRIVATE_TAG, Public: $PUBLIC_TAG"
+          else
+            echo "has-new-release=false" >> $GITHUB_OUTPUT
+            echo "should-mirror=false" >> $GITHUB_OUTPUT
+            echo "Public repo is up to date with private repo ($PRIVATE_TAG)"
+          fi
+
+  mirror-releases:
+    needs: check-for-new-releases
+    if: needs.check-for-new-releases.outputs.should-mirror == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout public repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get release from private repo
+        id: get-private-release
+        env:
+          PRIVATE_TOKEN: ${{ secrets[env.PRIVATE_PAT_NAME] }}
+          RELEASE_TAG: ${{ github.event.inputs.release_tag || github.event.client_payload.release_tag || '' }}
+        run: |
+          # Check if token is available
+          if [ -z "$PRIVATE_TOKEN" ]; then
+            echo "Error: ${{ env.PRIVATE_PAT_NAME }} secret is not set"
+            echo "Please add the PAT as a repository secret named ${{ env.PRIVATE_PAT_NAME }}"
+            exit 1
+          fi
+
+          # Determine which release to fetch
+          if [ -n "$RELEASE_TAG" ]; then
+            echo "Fetching specific release: $RELEASE_TAG"
+            RELEASE_URL="https://api.github.com/repos/${{ env.PRIVATE_REPO }}/releases/tags/$RELEASE_TAG"
+          else
+            echo "Fetching latest release"
+            RELEASE_URL="https://api.github.com/repos/${{ env.PRIVATE_REPO }}/releases/latest"
+          fi
+
+          echo "Making API request to: $RELEASE_URL"
+
+          # Fetch release information with detailed error handling
+          HTTP_STATUS=$(curl -s -w "%{http_code}" -H "Authorization: token $PRIVATE_TOKEN" "$RELEASE_URL" -o response.json)
+
+          echo "HTTP Status: $HTTP_STATUS"
+
+          # Check HTTP status
+          if [ "$HTTP_STATUS" -eq 401 ]; then
+            echo "Error: Authentication failed. Check your ${{ env.PRIVATE_PAT_NAME }}"
+            exit 1
+          elif [ "$HTTP_STATUS" -eq 404 ]; then
+            echo "Error: Repository or release not found"
+            exit 1
+          elif [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "Error: API request failed with status $HTTP_STATUS"
+            exit 1
+          fi
+
+          RELEASE_DATA=$(cat response.json)
+
+          # Check if the response is valid JSON with expected fields
+          if ! echo "$RELEASE_DATA" | jq -e '.tag_name' > /dev/null; then
+            echo "Error: Invalid response from GitHub API"
+            echo "Response does not contain expected release data"
+            exit 1
+          fi
+
+          # Extract release information
+          TAG_NAME=$(echo "$RELEASE_DATA" | jq -r '.tag_name // "unknown"')
+          RELEASE_NAME=$(echo "$RELEASE_DATA" | jq -r '.name // .tag_name // "Release"')
+          RELEASE_BODY=$(echo "$RELEASE_DATA" | jq -r '.body // "No description provided"')
+          IS_PRERELEASE=$(echo "$RELEASE_DATA" | jq -r '.prerelease // false')
+          IS_DRAFT=$(echo "$RELEASE_DATA" | jq -r '.draft // false')
+
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "release_name=$RELEASE_NAME" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "is_draft=$IS_DRAFT" >> $GITHUB_OUTPUT
+
+          # Save release body to file (to handle multiline content)
+          echo "$RELEASE_BODY" > release_body.txt
+
+          # Save asset information
+          echo "$RELEASE_DATA" | jq -r '.assets[]? | "\(.name)|\(.id)|\(.browser_download_url)"' > assets.txt || echo "" > assets.txt
+
+          echo "Found release: $TAG_NAME - $RELEASE_NAME"
+          echo "Prerelease: $IS_PRERELEASE, Draft: $IS_DRAFT"
+          echo "Assets found:"
+          if [ -s assets.txt ]; then
+            cat assets.txt
+          else
+            echo "No assets found for this release"
+          fi
+
+      - name: Check if release already exists in public repo
+        id: check-existing
+        env:
+          TAG_NAME: ${{ steps.get-private-release.outputs.tag_name }}
+          FORCE_RELEASE: ${{ github.event.inputs.force_release || 'false' }}
+        run: |
+          # Check if tag already exists
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG_NAME$"; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag $TAG_NAME already exists in public repo"
+
+            if [ "$FORCE_RELEASE" != "true" ]; then
+              echo "should_skip=true" >> $GITHUB_OUTPUT
+              echo "Skipping release creation (tag exists and not forced)"
+            else
+              echo "should_skip=false" >> $GITHUB_OUTPUT
+              echo "Will force create release"
+            fi
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "should_skip=false" >> $GITHUB_OUTPUT
+            echo "Tag $TAG_NAME does not exist, will create release"
+          fi
+
+      - name: Download release assets
+        if: steps.check-existing.outputs.should_skip != 'true'
+        env:
+          PRIVATE_TOKEN: ${{ secrets[env.PRIVATE_PAT_NAME] }}
+        run: |
+          mkdir -p release_assets
+
+          # Check if there are any assets to download
+          if [ ! -s assets.txt ]; then
+            echo "No assets to download"
+            touch release_assets/.gitkeep
+            exit 0
+          fi
+
+          # Download each asset using GitHub API for private repos
+          while IFS='|' read -r asset_name asset_id browser_url; do
+            if [ -n "$asset_name" ] && [ -n "$asset_id" ]; then
+              echo "Downloading $asset_name (ID: $asset_id)..."
+
+              # Use GitHub API to download private repo assets
+              API_URL="https://api.github.com/repos/${{ env.PRIVATE_REPO }}/releases/assets/$asset_id"
+
+              curl -L -H "Authorization: token $PRIVATE_TOKEN" \
+                   -H "Accept: application/octet-stream" \
+                   -o "release_assets/$asset_name" \
+                   "$API_URL"
+
+              if [ $? -eq 0 ] && [ -f "release_assets/$asset_name" ] && [ -s "release_assets/$asset_name" ]; then
+                FILE_SIZE=$(du -h "release_assets/$asset_name" | cut -f1)
+                echo "Successfully downloaded $asset_name ($FILE_SIZE)"
+              else
+                echo "Failed to download $asset_name, trying fallback..."
+                curl -L -H "Authorization: token $PRIVATE_TOKEN" \
+                     -o "release_assets/$asset_name" \
+                     "$browser_url"
+
+                if [ $? -eq 0 ] && [ -s "release_assets/$asset_name" ]; then
+                  FILE_SIZE=$(du -h "release_assets/$asset_name" | cut -f1)
+                  echo "Successfully downloaded $asset_name using fallback method ($FILE_SIZE)"
+                else
+                  echo "Both download methods failed for $asset_name"
+                fi
+              fi
+            fi
+          done < assets.txt
+
+          echo "Downloaded assets:"
+          ls -la release_assets/
+
+      - name: Create/update public release
+        if: steps.check-existing.outputs.should_skip != 'true'
+        env:
+          TAG_NAME: ${{ steps.get-private-release.outputs.tag_name }}
+          TAG_EXISTS: ${{ steps.check-existing.outputs.exists }}
+        run: |
+          # Configure git
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          # Create tag if it doesn't exist
+          if [ "$TAG_EXISTS" != "true" ]; then
+            echo "Creating new tag $TAG_NAME"
+            git tag $TAG_NAME -m "Mirrored release from private repo"
+            git push origin $TAG_NAME
+          else
+            echo "Tag $TAG_NAME already exists, will update existing release"
+          fi
+
+      - name: Upload release to public repo
+        if: steps.check-existing.outputs.should_skip != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get-private-release.outputs.tag_name }}
+          name: ${{ steps.get-private-release.outputs.release_name }}
+          body_path: release_body.txt
+          files: |
+            release_assets/*
+          draft: ${{ steps.get-private-release.outputs.is_draft == 'true' }}
+          prerelease: ${{ steps.get-private-release.outputs.is_prerelease == 'true' }}
+          generate_release_notes: false
+          make_latest: true
+          fail_on_unmatched_files: false
+
+      - name: Summary
+        if: steps.check-existing.outputs.should_skip != 'true'
+        run: |
+          echo "Successfully mirrored release ${{ steps.get-private-release.outputs.tag_name }} from private repo"
+          echo "Release name: ${{ steps.get-private-release.outputs.release_name }}"
+          echo "Assets included:"
+          ls -la release_assets/ | grep -v '^total'
